@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Auto Caller</string>
+    <string name="action_settings">إضافة رقم</string>
+    <string name="action_show_log">عرض السجل</string>
+    <string name="title_activity_show_log">ShowLogActivity</string>
+    <string name="action_delete_log">Delete log</string>
+    <string name="title_activity_settings">Settings</string>
+    <string name="action_info">تعليمات</string>
+    <string name="help">
+        بسم الله الرحمن الرحيم
+        يستخدم هذا البرنامج للرن على أصدقائك وأقاربك لإياقظهم للصلاة
+        وذلك بشكل آلي ومتكرر، حتى يقوم الطرف الثاني برفض المكالمة أو الرد عليها
+        ويمكن تحديد عدد المكالمات المتكررة في حالة عدم الرد
+        ويمكن إعادة ترتيب القائمة ويمكن إضافة الاسم والرقم أكثر من مرة
+
+        ويمكن عرض سجل المكالمات من القائمة العلوية
+        والله المستعان
+    </string>
+</resources>

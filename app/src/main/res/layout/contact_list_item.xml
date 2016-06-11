@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="?android:attr/listPreferredItemHeight"
+    android:padding="6dip">
+    <ImageButton
+        android:id="@+id/btnMoveUp"
+        android:layout_width="30dp"
+        android:layout_height="fill_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentTop="true"
+        android:src="@android:drawable/arrow_up_float" />
+    <ImageButton
+        android:id="@+id/btnMoveDown"
+        android:layout_width="30dp"
+        android:layout_height="fill_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentTop="true"
+        android:layout_toRightOf="@id/btnMoveUp"
+        android:layout_toEndOf="@id/btnMoveUp"
+        android:src="@android:drawable/arrow_down_float" />
+    <Button
+        android:text="1"
+        android:id="@+id/btnCallCount"
+        android:layout_width="40dp"
+        android:layout_height="match_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentTop="true"
+        android:layout_toRightOf="@id/btnMoveDown"
+        android:layout_toEndOf="@id/btnMoveDown" />
+    <ImageButton
+        android:id="@+id/delete_item"
+        android:layout_width="40dp"
+        android:layout_height="fill_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentTop="true"
+        android:layout_toRightOf="@id/btnCallCount"
+        android:layout_toEndOf="@id/btnCallCount"
+        android:src="@android:drawable/ic_delete" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:layout_alignWithParentIfMissing="true"
+        android:layout_toRightOf="@id/delete_item"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:layout_toEndOf="@id/delete_item">
+        <TextView
+            android:text="شقيقتي. سارة"
+            android:layout_weight="1"
+            android:textStyle="bold"
+            android:layout_gravity="end"
+            android:id="@+id/textViewContactName"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:gravity="start"
+            android:textSize="16sp" />
+        <TextView
+            android:text="+966507337605"
+            android:id="@+id/textViewContactNumber"
+            android:layout_weight="1"
+            android:layout_gravity="start"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:gravity="start"
+            android:textSize="16sp" />
+    </LinearLayout>
+</RelativeLayout>
