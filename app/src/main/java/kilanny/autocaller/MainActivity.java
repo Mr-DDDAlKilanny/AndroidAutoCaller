@@ -35,7 +35,6 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
@@ -44,11 +43,14 @@ public class MainActivity extends AppCompatActivity {
     private static final int READ_LOG_PERMISSION_REQUEST = 1994;
     private static final int PICK_CONTACT = 1993;
 
+    // fields for onRequestPermissionsResult()
     private String lastCallNumber, lastCallName;
-    private ArrayAdapter<ContactsListItem> adapter;
+    private int lastCallCurrentCount, lastCallTotalCount;
 
+    private ArrayAdapter<ContactsListItem> adapter;
     private boolean iHaveStartedTheOutgoingCall = false;
     private int listCallingIndex = -1;
+    private final HashSet<String> ansOrRejectedNumbers = new HashSet<>();
     private int listCallingCount = 0;
     private AutoCallLog.AutoCallSession currentSession;
 
@@ -110,6 +112,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private boolean numberInRejectedNumbers(ContactsListGroupList groups, String number) {
+        for (ContactsListGroup g : groups) // search in all groups
+            if (g.contacts.containsKey(number)) //which I'm member of
+                for (String num : g.contacts.keySet()) //search all members of that group
+                    if (ansOrRejectedNumbers.contains(num)) //if someone already rejected
+                        return true;
+        return false;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -117,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         final ContactsList list = ContactsList.getInstance(this);
+        final ContactsListGroupList groups = ContactsListGroupList.getInstance(this);
         Collections.sort(list, new Comparator<ContactsListItem>() {
             @Override
             public int compare(ContactsListItem lhs, ContactsListItem rhs) {
@@ -126,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
         TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
         mTM.listen(new PhoneStateListener() {
             @Override
-            public void onCallStateChanged(int state, String incomingNumber) {
+            public void onCallStateChanged(final int state, final String incomingNumber) {
                 if (TelephonyManager.CALL_STATE_IDLE == state) {
                     if (iHaveStartedTheOutgoingCall) {
                         // call after 1 seconds, to enable the phone to update the call log
@@ -143,24 +155,64 @@ public class MainActivity extends AppCompatActivity {
                                     if (++listCallingCount > listItem.callCount ||
                                             (ans = hasRejectedOrAnsweredOutgoingCall(listItem.number))) {
                                         listCallingCount = 1;
-                                        if (++listCallingIndex >= list.size()) {
+                                        if (ans)
+                                            ansOrRejectedNumbers.add(listItem.number);
+                                        while (++listCallingIndex < list.size() && (
+                                                ansOrRejectedNumbers.contains(list.get(listCallingIndex).number)
+                                                || numberInRejectedNumbers(groups, list.get(listCallingIndex).number))) {
+                                        }
+                                        if (listCallingIndex >= list.size()) {
                                             finished = true;
                                             return;
                                         }
                                     }
                                 } finally {
-                                    Log.d("AutoCall", "calling result: " + ans
-                                            + ", index = " + listCallingIndex
-                                            + ", count = " + listCallingCount);
-                                    currentSession.get(currentSession.size() - 1).result = ans ?
-                                            AutoCallLog.AutoCall.RESULT_ANSWERED_OR_REJECTED :
-                                            AutoCallLog.AutoCall.RESULT_NOT_ANSWERED;
+                                    //ignore the first result when retry calls has been chosen
+                                    if (currentSession.get(currentSession.size() - 1)
+                                            instanceof AutoCallLog.AutoCall) {
+                                        Log.d("AutoCallItem", "calling result: " + ans
+                                                + ", index = " + listCallingIndex
+                                                + ", count = " + listCallingCount);
+                                        ((AutoCallLog.AutoCall) currentSession.get(currentSession.size() - 1)).result = ans ?
+                                                AutoCallLog.AutoCall.RESULT_ANSWERED_OR_REJECTED :
+                                                AutoCallLog.AutoCall.RESULT_NOT_ANSWERED;
+                                    }
                                     if (finished) {
-                                        stopAutoCall();
+                                        int firstNotAnsweredIdx = -1;
+                                        for (int i = 0; i < list.size(); ++i) {
+                                            if (!ansOrRejectedNumbers.contains(list.get(i).number)
+                                                    && !numberInRejectedNumbers(groups, list.get(i).number)) {
+                                                firstNotAnsweredIdx = i;
+                                                break;
+                                            }
+                                        }
+                                        if (firstNotAnsweredIdx >= 0) {
+                                            final int tmpIdx = firstNotAnsweredIdx;
+                                            new AlertDialog.Builder(MainActivity.this)
+                                                    .setTitle(R.string.some_not_answered_title)
+                                                    .setMessage(R.string.some_not_answered_body)
+                                                    .setIcon(android.R.drawable.ic_dialog_info)
+                                                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+
+                                                        public void onClick(DialogInterface dialog, int whichButton) {
+                                                            listCallingCount = 0;
+                                                            listCallingIndex = tmpIdx;
+                                                            currentSession.add(new AutoCallLog.AutoCallRetry());
+                                                            AutoCallLog.getInstance(MainActivity.this).save(MainActivity.this);
+                                                            onCallStateChanged(state, incomingNumber);
+                                                        }})
+                                                    .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                                                        @Override
+                                                        public void onClick(DialogInterface dialog, int which) {
+                                                            stopAutoCall();
+                                                        }
+                                                    }).show();
+                                        } else stopAutoCall();
                                     }
                                 }
                                 listItem = list.get(listCallingIndex);
-                                callNumber(listItem.number, listItem.name);
+                                callNumber(listItem.number, listItem.name, listCallingCount,
+                                        listItem.callCount);
                             }
                         }, 1, TimeUnit.SECONDS);
                     }
@@ -176,8 +228,8 @@ public class MainActivity extends AppCompatActivity {
                     //already running?
                     if (listCallingIndex != -1 && listCallingIndex < list.size()) {
                         new AlertDialog.Builder(MainActivity.this)
-                                .setTitle("المكالمات الآلية")
-                                .setMessage("تم بدء المكالمات الآلية بالفعل. هل تريد إيقافها الآن؟")
+                                .setTitle(R.string.already_started_msg_title)
+                                .setMessage(R.string.already_started_msg_body)
                                 .setIcon(android.R.drawable.ic_dialog_alert)
                                 .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
 
@@ -188,7 +240,7 @@ public class MainActivity extends AppCompatActivity {
                         return;
                     }
                     if (list.size() == 0) {
-                        Snackbar.make(view, "الرجاء إضافة رقم واحد على الأقل للقائمة",
+                        Snackbar.make(view, R.string.toast_please_add_items,
                                 Snackbar.LENGTH_LONG).setAction("Action", null).show();
                         return;
                     }
@@ -196,8 +248,13 @@ public class MainActivity extends AppCompatActivity {
                     listCallingIndex = 0;
                     currentSession = new AutoCallLog.AutoCallSession();
                     currentSession.date = new Date();
-                    callNumber(list.get(listCallingIndex).number, list.get(listCallingIndex).name);
-                    Snackbar.make(view, "يجري الآن الاتصال بالقائمة...", Snackbar.LENGTH_LONG)
+                    AutoCallLog instance = AutoCallLog.getInstance(MainActivity.this);
+                    instance.sessions.add(currentSession);
+                    instance.save(MainActivity.this);
+                    ansOrRejectedNumbers.clear();
+                    callNumber(list.get(listCallingIndex).number, list.get(listCallingIndex).name,
+                            1, list.get(listCallingIndex).callCount);
+                    Snackbar.make(view, R.string.toast_starting_calls, Snackbar.LENGTH_LONG)
                             .setAction("Action", null).show();
                 }
             });
@@ -279,9 +336,7 @@ public class MainActivity extends AppCompatActivity {
         Application app = Application.getInstance(this);
         app.lastCallNumber = null;
         app.save(this);
-        AutoCallLog instance = AutoCallLog.getInstance(MainActivity.this);
-        instance.sessions.add(currentSession);
-        instance.save(MainActivity.this);
+        AutoCallLog.getInstance(this).save(this);
         currentSession = null;
     }
 
@@ -291,6 +346,7 @@ public class MainActivity extends AppCompatActivity {
         autoCall.name = name;
         autoCall.number = number;
         currentSession.add(autoCall);
+        AutoCallLog.getInstance(this).save(this);
     }
 
     @Override
@@ -309,7 +365,8 @@ public class MainActivity extends AppCompatActivity {
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    callNumber(lastCallNumber, lastCallName);
+                    callNumber(lastCallNumber, lastCallName, lastCallCurrentCount,
+                            lastCallTotalCount);
                 }
                 return;
             }
@@ -338,13 +395,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void callNumber(String number, String name) {
+    private void callNumber(String number, String name, int currentCallCount, int totalCallCount) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (ActivityCompat.checkSelfPermission(this,
-                    Manifest.permission.CALL_PHONE)
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE)
                     != PackageManager.PERMISSION_GRANTED) {
                 lastCallNumber = number;
                 lastCallName = name;
+                lastCallCurrentCount = currentCallCount;
+                lastCallTotalCount = totalCallCount;
                 requestPermissions(new String[] {Manifest.permission.CALL_PHONE}, CALL_PHONE_PERMISSION_RQUEST);
                 return;
             }
@@ -354,6 +412,9 @@ public class MainActivity extends AppCompatActivity {
         Application app = Application.getInstance(this);
         app.lastOutgoingCallStartRinging = null;
         app.lastCallNumber = number;
+        app.lastCallName = name;
+        app.lastCallCurrentCount = currentCallCount;
+        app.lastCallTotalCount = totalCallCount;
         app.save(this);
         Intent callIntent = new Intent(Intent.ACTION_CALL);
         callIntent.setData(Uri.parse("tel:" + number));
@@ -382,9 +443,11 @@ public class MainActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.action_show_log) {
             startActivity(new Intent(this, ShowLogActivity.class));
+        } else if (id == R.id.action_edit_groups) {
+            startActivity(new Intent(this, EditGroupsActivity.class));
         } else if (id == R.id.action_info) {
             new AlertDialog.Builder(MainActivity.this)
-                    .setTitle("المكالمات الآلية")
+                    .setTitle(R.string.app_name)
                     .setCancelable(true)
                     .setMessage(getString(R.string.help))
                     .setIcon(android.R.drawable.ic_dialog_info)

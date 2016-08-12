@@ -8,41 +8,40 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.Date;
+import java.util.ArrayList;
 
 /**
- * Created by Yasser on 06/11/2016.
+ * Created by Yasser on 08/12/2016.
  */
-public class Application implements Serializable {
+public class ContactsListGroupList extends ArrayList<ContactsListGroup>
+    implements Serializable {
+    private static ContactsListGroupList instance;
+    public static final String CONTACTS_LIST_SAVE_FILE_NAME = "contact_groups.dat";
 
-    private static final String FILE_NAME = "app";
-    private static Application instance;
-
-    public static Application getInstance(Context context) {
+    public static ContactsListGroupList getInstance(Context context) {
         if (instance == null) {
             try {
-                FileInputStream fis = context.openFileInput(FILE_NAME);
+                FileInputStream fis = context.openFileInput(CONTACTS_LIST_SAVE_FILE_NAME);
                 ObjectInputStream is = new ObjectInputStream(fis);
-                instance = (Application) is.readObject();
+                instance = (ContactsListGroupList) is.readObject();
                 is.close();
                 fis.close();
             } catch (IOException | ClassNotFoundException ex) {
                 ex.printStackTrace();
             }
             if (instance == null)
-                instance = new Application();
+                instance = new ContactsListGroupList();
         }
         return instance;
     }
 
-    public Date lastOutgoingCallStartRinging;
-    public String lastCallNumber, lastCallName;
-    public int lastCallCurrentCount, lastCallTotalCount;
+    private ContactsListGroupList() {
+    }
 
     public void save(Context context) {
         try {
-            FileOutputStream fos = context.openFileOutput(
-                    FILE_NAME, Context.MODE_PRIVATE);
+            FileOutputStream fos = context.openFileOutput(CONTACTS_LIST_SAVE_FILE_NAME,
+                    Context.MODE_PRIVATE);
             ObjectOutputStream os = new ObjectOutputStream(fos);
             os.writeObject(this);
             os.close();
@@ -50,8 +49,5 @@ public class Application implements Serializable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private Application() {
     }
 }

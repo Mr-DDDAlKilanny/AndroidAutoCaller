@@ -16,12 +16,18 @@ import java.util.Date;
  */
 public class AutoCallLog implements Serializable {
 
-    public static class AutoCallSession extends ArrayList<AutoCall>
+    public static class AutoCallSession extends ArrayList<AutoCallItem>
             implements Serializable {
         Date date;
     }
 
-    public static class AutoCall implements Serializable {
+    public static abstract class AutoCallItem implements Serializable {
+
+    }
+    public static class AutoCallRetry extends AutoCallItem {
+
+    }
+    public static class AutoCall extends AutoCallItem {
         public static final int RESULT_UNKNOWN = 0;
         public static final int RESULT_NOT_ANSWERED = 1;
         public static final int RESULT_ANSWERED_OR_REJECTED = 2;

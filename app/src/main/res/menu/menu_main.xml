@@ -9,15 +9,22 @@
         android:title="@string/action_settings"
         app:showAsAction="ifRoom" />
     <item
+        android:id="@+id/action_edit_groups"
+        android:orderInCategory="102"
+        android:title="@string/action_edit_group"
+        android:icon="@android:drawable/sym_call_missed"
+        app:showAsAction="ifRoom"
+        />
+    <item
         android:id="@+id/action_show_log"
-        android:orderInCategory="101"
+        android:orderInCategory="102"
         android:title="@string/action_show_log"
         android:icon="@android:drawable/ic_menu_call"
         app:showAsAction="ifRoom"
         />
     <item
         android:id="@+id/action_info"
-        android:orderInCategory="102"
+        android:orderInCategory="103"
         android:icon="@android:drawable/ic_menu_info_details"
         android:title="@string/action_info"
         app:showAsAction="ifRoom" />

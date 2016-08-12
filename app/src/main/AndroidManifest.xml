@@ -24,6 +24,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <receiver android:name=".OutgoingCallReciever">
             <intent-filter>
                 <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
@@ -46,7 +47,16 @@
             android:exported="false" >
         </service>
         -->
-        <activity android:name=".ShowLogActivity" />
+        <activity android:name=".ShowLogActivity"
+            android:label="@string/action_show_log" />
+        <activity android:name=".EditGroupsActivity"
+            android:label="@string/action_edit_group" />
+        <activity
+            android:name=".SetNotificationTimeActivity"
+            android:label="@string/title_activity_set_notification_time"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
+        <service android:name=".NotifyService" />
+        <service android:name=".ScheduleService" />
     </application>
 
 </manifest>

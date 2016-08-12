@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">الرنان الآلي</string>
+    <string name="action_info">تعليمات</string>
+    <string name="action_settings">إضافة رقم</string>
+    <string name="action_show_log">عرض السجل</string>
+    <string name="help">بسم الله الرحمن الرحيم         يستخدم هذا البرنامج للرن على أصدقائك وأقاربك لإياقظهم للصلاة         وذلك بشكل آلي ومتكرر، حتى يقوم الطرف الثاني برفض المكالمة أو الرد عليها         ويمكن تحديد عدد المكالمات المتكررة في حالة عدم الرد         ويمكن إعادة ترتيب القائمة ويمكن إضافة الاسم والرقم أكثر من مرة          ويمكن عرض سجل المكالمات من القائمة العلوية         والله المستعان</string>
+    <string name="title_activity_settings">الإعدادات</string>
+    <string name="title_activity_show_log">سجل المكالمات الآلية</string>
+    <string name="action_delete_log">مسح السجل</string>
+    <string name="already_started_msg_body">تم بدء المكالمات الآلية بالفعل. هل تريد إيقافها الآن؟</string>
+    <string name="already_started_msg_title">المكالمات الآلية</string>
+    <string name="call_status_answered_or_rejected">تم الرفض / الرد</string>
+    <string name="call_status_no_answer">لا إجابة</string>
+    <string name="call_status_unknown">غير معروف</string>
+    <string name="delete_log_confirm_body">متأكد أنك تريد حذف سجل المكالمات الآلية؟</string>
+    <string name="delete_log_confirm_title">حذف السجل</string>
+    <string name="toast_display_call_callTo">مكالمة آلية إلى </string>
+    <string name="toast_display_call_of"> من </string>
+    <string name="toast_please_add_items">الرجاء إضافة رقم واحد على الأقل للقائمة أولا</string>
+    <string name="toast_starting_calls">يتم الاتصال بالأرقام في القائمة…</string>
+    <string name="title_activity_set_notification_time">وقت التنبيه</string>
+    <string name="some_not_answered_title">اكتمال الاتصال بالقائمة</string>
+    <string name="some_not_answered_body">بعض الأرقام في القائمة لم ترد. إعادة المحاولة مع هذه الأرقام؟</string>
+    <string name="auto_call_restart">إعادة الاتصال بالأرقام التي لم ترد</string>
+    <string name="confirm_delete_group_body">متأكد أنك تريد حذف هذه المجموعة؟</string>
+    <string name="confirm_delete_group_title">تأكيد</string>
+    <string name="group_name">اسم المجموعة:</string>
+    <string name="list_items">أعضاء المجموعة:</string>
+    <string name="add_contactgroup">إضافة مجموعة</string>
+    <string name="please_input_group_name">الرجاء ملء اسم المجموعة</string>
+    <string name="group_name_already_exists">اسم المجموعة موجود مسبقا</string>
+    <string name="group_members_atleast_two">يجب إضافة عضوين على الأقل للمجموعة</string>
+    <string name="action_edit_group">مجموعات الاتصال</string>
+    <string name="groups_help">بواسطة المجموعات، يمكنك إضافة أرقام إلى مجموعة بحيث إن رد أحد الأرقام أو رفض لا يتم الاتصال بالبقية</string>
+    <string name="contacts_list_emptry">قائمة الاتصال فارغة. الرجاء إضافة بعض الأسماء إلى قائمة الاتصال في الشاشة الرئيسية</string>
+</resources>
