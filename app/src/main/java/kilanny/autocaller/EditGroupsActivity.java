@@ -2,6 +2,7 @@ package kilanny.autocaller;
 
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AlertDialog;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Created by Yasser on 08/12/2016.
@@ -38,6 +40,7 @@ public class EditGroupsActivity extends AppCompatActivity {
     ExpandableListView expListView;
     List<String> listDataHeader;
     HashMap<String, List<String>> listDataChild;
+    private ContactsList clist;
 
     private ArrayList<MyListItem> initAddDlgListView(ListView listView, ContactsList contactsList) {
         final ArrayList<MyListItem> items = new ArrayList<>();
@@ -101,13 +104,14 @@ public class EditGroupsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_groups);
 
-        final ContactsListGroupList glist = ContactsListGroupList.getInstance(this);
+        Intent intent = getIntent();
+        clist = ListOfCallingLists.getInstance(this).getById(intent.getIntExtra("list", -1));
+
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab_addgroup);
         if (fab != null) {
             fab.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    ContactsList clist = ContactsList.getInstance(EditGroupsActivity.this);
                     if (clist.size() == 0) {
                         Toast.makeText(EditGroupsActivity.this, R.string.contacts_list_emptry,
                                 Toast.LENGTH_LONG).show();
@@ -154,8 +158,8 @@ public class EditGroupsActivity extends AppCompatActivity {
                                 }
                             }
                             listDataChild.put(g.name, childs);
-                            glist.add(g);
-                            glist.save(EditGroupsActivity.this);
+                            clist.getGroups().add(g);
+                            clist.save(EditGroupsActivity.this);
                             listAdapter.notifyDataSetChanged();
                             dlg.dismiss();
                         }
@@ -172,7 +176,7 @@ public class EditGroupsActivity extends AppCompatActivity {
         prepareListData();
 
         listAdapter = new ExpandableListAdapter_Groups(this,
-                listDataHeader, listDataChild, glist);
+                listDataHeader, listDataChild, clist);
 
         // setting list adapter
         expListView.setAdapter(listAdapter);
@@ -184,8 +188,7 @@ public class EditGroupsActivity extends AppCompatActivity {
     private void prepareListData() {
         listDataHeader = new ArrayList<>();
         listDataChild = new HashMap<>();
-        ContactsListGroupList list = ContactsListGroupList.getInstance(this);
-        for (ContactsListGroup group : list) {
+        for (ContactsListGroup group : clist.getGroups()) {
             String head = group.name;
             listDataHeader.add(head);
             ArrayList<String> childs = new ArrayList<>();

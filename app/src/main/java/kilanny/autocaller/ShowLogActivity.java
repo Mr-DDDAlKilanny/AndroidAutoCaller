@@ -1,6 +1,7 @@
 package kilanny.autocaller;
 
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ShowLogActivity extends AppCompatActivity {
 
@@ -22,12 +24,16 @@ public class ShowLogActivity extends AppCompatActivity {
     ExpandableListView expListView;
     List<String> listDataHeader;
     HashMap<String, List<String>> listDataChild;
+    private ContactsList list;
 
     //http://www.androidhive.info/2013/07/android-expandable-list-view-tutorial/
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_show_log);
+
+        Intent intent = getIntent();
+        list = ListOfCallingLists.getInstance(this).getById(intent.getIntExtra("list", -1));
 
         // get the listview
         expListView = (ExpandableListView) findViewById(R.id.expList);
@@ -47,13 +53,12 @@ public class ShowLogActivity extends AppCompatActivity {
     private void prepareListData() {
         listDataHeader = new ArrayList<>();
         listDataChild = new HashMap<>();
-        AutoCallLog log = AutoCallLog.getInstance(this);
         DateFormat timeInstance = SimpleDateFormat.getTimeInstance(),
             dateFormat = new SimpleDateFormat("EEEE, MMMM d, yyyy HH:mm", Locale.getDefault());
         //test if default locale is not working, replace with US
         if (Character.isDigit(dateFormat.format(new Date()).charAt(0)))
             dateFormat = new SimpleDateFormat("EEEE, MMMM d, yyyy HH:mm", Locale.US);
-        for (AutoCallLog.AutoCallSession session : log.sessions) {
+        for (AutoCallLog.AutoCallSession session : list.getLog().sessions) {
             String head = dateFormat.format(session.date);
             listDataHeader.add(head);
             ArrayList<String> childs = new ArrayList<>();
@@ -97,9 +102,8 @@ public class ShowLogActivity extends AppCompatActivity {
                     .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
 
                         public void onClick(DialogInterface dialog, int whichButton) {
-                            AutoCallLog instance = AutoCallLog.getInstance(ShowLogActivity.this);
-                            instance.sessions.clear();
-                            instance.save(ShowLogActivity.this);
+                            list.getLog().sessions.clear();
+                            list.save(ShowLogActivity.this);
                             listDataHeader.clear();
                             listDataChild.clear();
                             listAdapter.notifyDataSetChanged();

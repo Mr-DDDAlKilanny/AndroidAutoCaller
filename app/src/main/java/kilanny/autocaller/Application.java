@@ -1,6 +1,7 @@
 package kilanny.autocaller;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -18,6 +19,7 @@ public class Application implements Serializable {
     private static final String FILE_NAME = "app";
     private static Application instance;
 
+    @NonNull
     public static Application getInstance(Context context) {
         if (instance == null) {
             try {

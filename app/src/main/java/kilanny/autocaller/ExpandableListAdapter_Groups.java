@@ -20,13 +20,15 @@ public class ExpandableListAdapter_Groups extends BaseExpandableListAdapter {
     private List<String> _listDataHeader; // header titles
     // child data in format of header title, child title
     private HashMap<String, List<String>> _listDataChild;
+    private final ContactsList contactsList;
     private final ContactsListGroupList list;
 
     public ExpandableListAdapter_Groups(Context context, List<String> listDataHeader,
                                         HashMap<String, List<String>> listChildData,
-                                        ContactsListGroupList list) {
+                                        ContactsList contactsList) {
         this._context = context;
-        this.list = list;
+        this.contactsList = contactsList;
+        this.list = contactsList.getGroups();
         this._listDataHeader = listDataHeader;
         this._listDataChild = listChildData;
     }
@@ -117,7 +119,7 @@ public class ExpandableListAdapter_Groups extends BaseExpandableListAdapter {
                                 }
                                 if (remove != null) {
                                     list.remove(remove);
-                                    list.save(_context);
+                                    contactsList.save(_context);
                                 }
                                 notifyDataSetChanged();
                             }})

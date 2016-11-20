@@ -24,7 +24,7 @@ You can view the log for calls from the above menu.</string>
     <string name="toast_please_add_items">Please add at least one item to the list first</string>
     <string name="toast_starting_calls">Calling the numbers in list…</string>
     <string name="title_activity_set_notification_time">Notification Time</string>
-    <string name="some_not_answered_title">Auto Calling Done</string>
+    <string name="some_not_answered_title">Auto Caller</string>
     <string name="some_not_answered_body">Some numbers in list have not responded. Try again with them now?</string>
     <string name="auto_call_restart">Recalling not answered numbers</string>
     <string name="confirm_delete_group_title">Confirm</string>
@@ -38,4 +38,10 @@ You can view the log for calls from the above menu.</string>
     <string name="action_edit_group">Call Groups</string>
     <string name="groups_help">With groups, you can add numbers to group such that when one of them responds / rejects, the other members are not called.</string>
     <string name="contacts_list_emptry">Contacts List is empty. Please add contacts to the calling list in the main screen</string>
+    <string name="add_new_list_title">Enter List Name</string>
+    <string name="add_success">Added Successfully</string>
+    <string name="delete_list">Delete Call Menu</string>
+    <string name="edit_list_name">Edit Call Menu Name</string>
+    <string name="set_sched_for_list">Set Calling Schedule</string>
+    <string name="delete_list_confirm_body">Are you sure you want to delete this menu? All numbers and groups associated to it will be deleted also.</string>
 </resources>

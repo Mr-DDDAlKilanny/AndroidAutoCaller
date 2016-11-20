@@ -16,6 +16,8 @@ public class OutgoingCallReciever extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         String phoneNumber = intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER);
+        if (phoneNumber == null)
+            return; //potential bug
         Log.d("OutgoingCallReciever", intent.toString() + ", call to: " + phoneNumber);
         phoneNumber = phoneNumber.replace(" ", "").trim();
         Application app = Application.getInstance(context);

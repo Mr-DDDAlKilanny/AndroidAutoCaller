@@ -20,7 +20,6 @@
     <string name="toast_please_add_items">الرجاء إضافة رقم واحد على الأقل للقائمة أولا</string>
     <string name="toast_starting_calls">يتم الاتصال بالأرقام في القائمة…</string>
     <string name="title_activity_set_notification_time">وقت التنبيه</string>
-    <string name="some_not_answered_title">اكتمال الاتصال بالقائمة</string>
     <string name="some_not_answered_body">بعض الأرقام في القائمة لم ترد. إعادة المحاولة مع هذه الأرقام؟</string>
     <string name="auto_call_restart">إعادة الاتصال بالأرقام التي لم ترد</string>
     <string name="confirm_delete_group_body">متأكد أنك تريد حذف هذه المجموعة؟</string>
@@ -34,4 +33,11 @@
     <string name="action_edit_group">مجموعات الاتصال</string>
     <string name="groups_help">بواسطة المجموعات، يمكنك إضافة أرقام إلى مجموعة بحيث إن رد أحد الأرقام أو رفض لا يتم الاتصال بالبقية</string>
     <string name="contacts_list_emptry">قائمة الاتصال فارغة. الرجاء إضافة بعض الأسماء إلى قائمة الاتصال في الشاشة الرئيسية</string>
+    <string name="some_not_answered_title">الرنان الآلي</string>
+    <string name="add_new_list_title">أدخل اسم القائمة</string>
+    <string name="add_success">تم إضافة القائمة</string>
+    <string name="delete_list">حذف قائمة الاتصال</string>
+    <string name="edit_list_name">تعديل اسم قائمة الاتصال</string>
+    <string name="set_sched_for_list">جدولة الاتصال بالقائمة</string>
+    <string name="delete_list_confirm_body">متأكد أنك تريد حذف هذه القائمة؟ يقوم هذا الإجراء بحذف جميع الأرقام والمجموعات التي في هذه القائمة</string>
 </resources>
