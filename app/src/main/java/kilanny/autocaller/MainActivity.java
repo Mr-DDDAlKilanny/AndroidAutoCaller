@@ -7,8 +7,10 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.provider.CallLog;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
@@ -31,10 +33,14 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 public class MainActivity extends AppCompatActivity {
@@ -48,13 +54,14 @@ public class MainActivity extends AppCompatActivity {
     private int lastCallCurrentCount, lastCallTotalCount;
 
     private ArrayAdapter<ContactsListItem> adapter;
-    private boolean iHaveStartedTheOutgoingCall = false;
+    //private boolean iHaveStartedTheOutgoingCall = false;
     private int listCallingIndex = -1;
     private final HashSet<String> ansOrRejectedNumbers = new HashSet<>();
     private int listCallingCount = 0;
     private AutoCallLog.AutoCallSession currentSession;
     private ContactsList list;
     private PhoneStateListener phoneStateListener;
+    private Timer lastTimer;
 
     private void rebind() {
         list.save(this);
@@ -123,8 +130,102 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
+    public boolean killCall(TelephonyManager telephonyManager) {
+        try {
+            // Get the getITelephony() method
+            Class classTelephony = Class.forName(telephonyManager.getClass().getName());
+            Method methodGetITelephony = classTelephony.getDeclaredMethod("getITelephony");
+
+            // Ignore that the method is supposed to be private
+            methodGetITelephony.setAccessible(true);
+
+            // Invoke getITelephony() to get the ITelephony interface
+            Object telephonyInterface = methodGetITelephony.invoke(telephonyManager);
+
+            // Get the endCall method from ITelephony
+            Class telephonyInterfaceClass =
+                    Class.forName(telephonyInterface.getClass().getName());
+            Method methodEndCall = telephonyInterfaceClass.getDeclaredMethod("endCall");
+
+            // Invoke endCall()
+            methodEndCall.invoke(telephonyInterface);
+
+        } catch (Exception ex) { // Many things can go wrong with reflection calls
+            Log.d("killCall", "PhoneStateReceiver **" + ex.toString());
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * http://stackoverflow.com/a/8380418/3441905
+     */
+    private boolean terminateActiveCall() {
+        try {
+            //String serviceManagerName = "android.os.IServiceManager";
+            String serviceManagerName = "android.os.ServiceManager";
+            String serviceManagerNativeName = "android.os.ServiceManagerNative";
+            String telephonyName = "com.android.internal.telephony.ITelephony";
+
+            Class telephonyClass;
+            Class telephonyStubClass;
+            Class serviceManagerClass;
+            Class serviceManagerNativeClass;
+
+            Method telephonyEndCall;
+            // Method getService;
+            Object telephonyObject;
+            Object serviceManagerObject;
+
+            telephonyClass = Class.forName(telephonyName);
+            telephonyStubClass = telephonyClass.getClasses()[0];
+            serviceManagerClass = Class.forName(serviceManagerName);
+            serviceManagerNativeClass = Class.forName(serviceManagerNativeName);
+
+            Method getService = serviceManagerClass.getMethod("getService", String.class);
+
+            Method tempInterfaceMethod = serviceManagerNativeClass.getMethod("asInterface",
+                    IBinder.class);
+
+            Binder tmpBinder = new Binder();
+            tmpBinder.attachInterface(null, "fake");
+
+            serviceManagerObject = tempInterfaceMethod.invoke(null, tmpBinder);
+            IBinder retbinder = (IBinder) getService.invoke(serviceManagerObject, "phone");
+            Method serviceMethod = telephonyStubClass.getMethod("asInterface", IBinder.class);
+
+            telephonyObject = serviceMethod.invoke(null, retbinder);
+            //telephonyCall = telephonyClass.getMethod("call", String.class);
+            telephonyEndCall = telephonyClass.getMethod("endCall");
+            //telephonyAnswerCall = telephonyClass.getMethod("answerRingingCall");
+
+            telephonyEndCall.invoke(telephonyObject);
+
+            Log.i("terminateActiveCall", "Successfully terminated current call");
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e("OutgoingCallReceiver", "Exception object: " + e);
+            return false;
+        }
+    }
+
+    private void runKillAutoCallTask() {
+        // in case a new call is made, and the previous call rejected, cancel the old timer
+        if (lastTimer != null)
+            lastTimer.cancel();
+        lastTimer = new Timer();
+        lastTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                terminateActiveCall();
+                ansOrRejectedNumbers.add(lastCallNumber);
+            }
+        }, 35000);
+    }
+
     private void setupPhoneListener() {
-        TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+        final TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
         if (phoneStateListener != null) {
             mTM.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
         }
@@ -132,7 +233,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCallStateChanged(final int state, final String incomingNumber) {
                 if (TelephonyManager.CALL_STATE_IDLE == state) {
-                    if (iHaveStartedTheOutgoingCall) {
+                    if (Application.getInstance(MainActivity.this).verifiedByOutgoingReceiver) {
                         // call after 1 seconds, to enable the phone to update the call log
                         // for the last call
                         Executors.newSingleThreadScheduledExecutor().schedule(new Runnable() {
@@ -142,12 +243,13 @@ public class MainActivity extends AppCompatActivity {
                                 try {
                                     boolean ans = false;
                                     boolean finished = false;
-                                    if (!iHaveStartedTheOutgoingCall || listCallingIndex == -1)
+                                    if (!Application.getInstance(MainActivity.this)
+                                            .verifiedByOutgoingReceiver || listCallingIndex == -1)
                                         return; // stopped by user
                                     ContactsListItem listItem = list.get(listCallingIndex);
                                     try {
-                                        if (++listCallingCount > listItem.callCount ||
-                                                (ans = hasRejectedOrAnsweredOutgoingCall(listItem.number))) {
+                                        if ((ans = hasRejectedOrAnsweredOutgoingCall(listItem.number))
+                                                || ++listCallingCount > listItem.callCount) {
                                             listCallingCount = 1;
                                             if (ans)
                                                 ansOrRejectedNumbers.add(listItem.number);
@@ -220,7 +322,14 @@ public class MainActivity extends AppCompatActivity {
                                     ex.printStackTrace();
                                 }
                             }
-                        }, 1, TimeUnit.SECONDS);
+                        }, 5, TimeUnit.SECONDS);
+                    }
+                } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
+                    Application app = Application.getInstance(MainActivity.this);
+                    if (app.verifiedByOutgoingReceiver) {
+                        runKillAutoCallTask();
+                        app.lastOutgoingCallStartRinging = new Date();
+                        app.save(MainActivity.this);
                     }
                 }
             }
@@ -359,10 +468,11 @@ public class MainActivity extends AppCompatActivity {
             mTM.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
             phoneStateListener = null;
         }
-        iHaveStartedTheOutgoingCall = false;
+        //iHaveStartedTheOutgoingCall = false;
         listCallingIndex = -1;
         Application app = Application.getInstance(this);
         app.lastCallNumber = null;
+        app.verifiedByOutgoingReceiver = false;
         app.save(this);
         list.save(this);
         currentSession = null;
@@ -436,13 +546,14 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        iHaveStartedTheOutgoingCall = true;
+        //iHaveStartedTheOutgoingCall = true;
         Application app = Application.getInstance(this);
         app.lastOutgoingCallStartRinging = null;
         app.lastCallNumber = number;
         app.lastCallName = name;
         app.lastCallCurrentCount = currentCallCount;
         app.lastCallTotalCount = totalCallCount;
+        app.verifiedByOutgoingReceiver = false;
         app.save(this);
         Intent callIntent = new Intent(Intent.ACTION_CALL);
         callIntent.setData(Uri.parse("tel:" + number));

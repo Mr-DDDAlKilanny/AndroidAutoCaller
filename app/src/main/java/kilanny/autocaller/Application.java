@@ -40,6 +40,7 @@ public class Application implements Serializable {
     public Date lastOutgoingCallStartRinging;
     public String lastCallNumber, lastCallName;
     public int lastCallCurrentCount, lastCallTotalCount;
+    public boolean verifiedByOutgoingReceiver;
 
     public void save(Context context) {
         try {
