@@ -33,7 +33,6 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Comparator;
@@ -48,6 +47,10 @@ public class MainActivity extends AppCompatActivity {
     private static final int CALL_PHONE_PERMISSION_RQUEST = 1992;
     private static final int READ_LOG_PERMISSION_REQUEST = 1994;
     private static final int PICK_CONTACT = 1993;
+
+    private static final int WAIT_BETWEEN_CALLS_SECONDS = 5;
+    private static final int NO_REPLY_TIMEOUT_SECONDS = 30 + WAIT_BETWEEN_CALLS_SECONDS;
+    private static final int KILL_CALL_AFTER_SECONDS = NO_REPLY_TIMEOUT_SECONDS + 35;
 
     // fields for onRequestPermissionsResult()
     private String lastCallNumber, lastCallName;
@@ -103,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
                         Log.d("CALL_CHECK", "true: rejected (status 5)");
                         return true;
                     case CallLog.Calls.OUTGOING_TYPE:
-                        if (Integer.parseInt(callDuration) > 0 || diffSeconds < 30) {
+                        if (Integer.parseInt(callDuration) > 0 || diffSeconds < NO_REPLY_TIMEOUT_SECONDS) {
                             Log.d("CALL_CHECK", "true: callDuration = " + callDuration
                                     + ", diffSeconds = " + diffSeconds);
                             return true;
@@ -210,18 +213,24 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void cancelCallHangupTimer() {
+        if (lastTimer != null) {
+            lastTimer.cancel();
+            lastTimer = null;
+        }
+    }
+
     private void runKillAutoCallTask() {
         // in case a new call is made, and the previous call rejected, cancel the old timer
-        if (lastTimer != null)
-            lastTimer.cancel();
+        cancelCallHangupTimer();
         lastTimer = new Timer();
         lastTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                terminateActiveCall();
                 ansOrRejectedNumbers.add(lastCallNumber);
+                terminateActiveCall();
             }
-        }, 35000);
+        }, KILL_CALL_AFTER_SECONDS * 1000);
     }
 
     private void setupPhoneListener() {
@@ -234,6 +243,7 @@ public class MainActivity extends AppCompatActivity {
             public void onCallStateChanged(final int state, final String incomingNumber) {
                 if (TelephonyManager.CALL_STATE_IDLE == state) {
                     if (Application.getInstance(MainActivity.this).verifiedByOutgoingReceiver) {
+                        cancelCallHangupTimer();
                         // call after 1 seconds, to enable the phone to update the call log
                         // for the last call
                         Executors.newSingleThreadScheduledExecutor().schedule(new Runnable() {
@@ -322,7 +332,7 @@ public class MainActivity extends AppCompatActivity {
                                     ex.printStackTrace();
                                 }
                             }
-                        }, 5, TimeUnit.SECONDS);
+                        }, WAIT_BETWEEN_CALLS_SECONDS, TimeUnit.SECONDS);
                     }
                 } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
                     Application app = Application.getInstance(MainActivity.this);
@@ -463,6 +473,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void stopAutoCall() {
+        cancelCallHangupTimer();
         if (phoneStateListener != null) {
             TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
             mTM.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
