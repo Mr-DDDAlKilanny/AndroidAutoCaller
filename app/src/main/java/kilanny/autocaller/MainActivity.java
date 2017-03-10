@@ -11,6 +11,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.PersistableBundle;
 import android.provider.CallLog;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
@@ -233,117 +234,111 @@ public class MainActivity extends AppCompatActivity {
         }, KILL_CALL_AFTER_SECONDS * 1000);
     }
 
-    private void setupPhoneListener() {
-        final TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-        if (phoneStateListener != null) {
-            mTM.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
-        }
-        mTM.listen(phoneStateListener = new PhoneStateListener() {
-            @Override
-            public void onCallStateChanged(final int state, final String incomingNumber) {
-                if (TelephonyManager.CALL_STATE_IDLE == state) {
-                    if (Application.getInstance(MainActivity.this).verifiedByOutgoingReceiver) {
-                        cancelCallHangupTimer();
-                        // call after 1 seconds, to enable the phone to update the call log
-                        // for the last call
-                        Executors.newSingleThreadScheduledExecutor().schedule(new Runnable() {
-                            @Override
-                            public void run() {
-                                ContactsListGroupList groups = list.getGroups();
-                                try {
-                                    boolean ans = false;
-                                    boolean finished = false;
-                                    if (!Application.getInstance(MainActivity.this)
-                                            .verifiedByOutgoingReceiver || listCallingIndex == -1)
-                                        return; // stopped by user
-                                    ContactsListItem listItem = list.get(listCallingIndex);
-                                    try {
-                                        if ((ans = hasRejectedOrAnsweredOutgoingCall(listItem.number))
-                                                || ++listCallingCount > listItem.callCount) {
-                                            listCallingCount = 1;
-                                            if (ans)
-                                                ansOrRejectedNumbers.add(listItem.number);
-                                            while (++listCallingIndex < list.size() && (
-                                                    ansOrRejectedNumbers.contains(list.get(listCallingIndex).number)
-                                                            || numberInRejectedNumbers(groups, list.get(listCallingIndex).number))) {
-                                            }
-                                            if (listCallingIndex >= list.size()) {
-                                                finished = true;
-                                                return;
-                                            }
-                                        }
-                                    } finally {
-                                        //ignore the first result when retry calls has been chosen
-                                        if (currentSession.get(currentSession.size() - 1)
-                                                instanceof AutoCallLog.AutoCall) {
-                                            Log.d("AutoCallItem", "calling result: " + ans
-                                                    + ", index = " + listCallingIndex
-                                                    + ", count = " + listCallingCount);
-                                            ((AutoCallLog.AutoCall) currentSession.get(currentSession.size() - 1)).result = ans ?
-                                                    AutoCallLog.AutoCall.RESULT_ANSWERED_OR_REJECTED :
-                                                    AutoCallLog.AutoCall.RESULT_NOT_ANSWERED;
-                                        }
-                                        if (finished) {
-                                            int firstNotAnsweredIdx = -1;
-                                            for (int i = 0; i < list.size(); ++i) {
-                                                if (!ansOrRejectedNumbers.contains(list.get(i).number)
-                                                        && !numberInRejectedNumbers(groups, list.get(i).number)) {
-                                                    firstNotAnsweredIdx = i;
-                                                    break;
-                                                }
-                                            }
-                                            if (firstNotAnsweredIdx >= 0) {
-                                                final int tmpIdx = firstNotAnsweredIdx;
-                                                runOnUiThread(new Runnable() {
-                                                    @Override
-                                                    public void run() {
-                                                        android.app.AlertDialog dlg = new android.app.AlertDialog.Builder(getApplicationContext())
-                                                                .setTitle(R.string.some_not_answered_title)
-                                                                .setCancelable(false)
-                                                                .setMessage(R.string.some_not_answered_body)
-                                                                .setIcon(android.R.drawable.ic_dialog_info)
-                                                                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-
-                                                                    public void onClick(DialogInterface dialog, int whichButton) {
-                                                                        listCallingCount = 0;
-                                                                        listCallingIndex = tmpIdx;
-                                                                        currentSession.add(new AutoCallLog.AutoCallRetry());
-                                                                        list.save(MainActivity.this);
-                                                                        onCallStateChanged(state, incomingNumber);
-                                                                    }
-                                                                })
-                                                                .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-                                                                    @Override
-                                                                    public void onClick(DialogInterface dialog, int which) {
-                                                                        stopAutoCall();
-                                                                    }
-                                                                }).create();
-                                                        dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-                                                        dlg.show();
-                                                    }
-                                                });
-                                            } else stopAutoCall();
-                                        }
-                                    }
-                                    listItem = list.get(listCallingIndex);
-                                    callNumber(listItem.number, listItem.name, listCallingCount,
-                                            listItem.callCount);
-                                } catch (Exception ex) { //prevent phone crash
-                                    ex.printStackTrace();
+    private void nextCall() {
+        if (Application.getInstance(MainActivity.this).verifiedByOutgoingReceiver) {
+            cancelCallHangupTimer();
+            // call after 1 seconds, to enable the phone to update the call log
+            // for the last call
+            Executors.newSingleThreadScheduledExecutor().schedule(new Runnable() {
+                @Override
+                public void run() {
+                    ContactsListGroupList groups = list.getGroups();
+                    try {
+                        boolean ans = false;
+                        boolean finished = false;
+                        if (!Application.getInstance(MainActivity.this)
+                                .verifiedByOutgoingReceiver || listCallingIndex == -1)
+                            return; // stopped by user
+                        ContactsListItem listItem = list.get(listCallingIndex);
+                        try {
+                            if ((ans = hasRejectedOrAnsweredOutgoingCall(listItem.number))
+                                    || ++listCallingCount > listItem.callCount) {
+                                listCallingCount = 1;
+                                if (ans)
+                                    ansOrRejectedNumbers.add(listItem.number);
+                                while (++listCallingIndex < list.size() && (
+                                        ansOrRejectedNumbers.contains(list.get(listCallingIndex).number)
+                                                || numberInRejectedNumbers(groups, list.get(listCallingIndex).number))) {
+                                }
+                                if (listCallingIndex >= list.size()) {
+                                    finished = true;
+                                    return;
                                 }
                             }
-                        }, WAIT_BETWEEN_CALLS_SECONDS, TimeUnit.SECONDS);
-                    }
-                } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
-                    Application app = Application.getInstance(MainActivity.this);
-                    if (app.verifiedByOutgoingReceiver) {
-                        runKillAutoCallTask();
-                        app.lastOutgoingCallStartRinging = new Date();
-                        app.save(MainActivity.this);
+                        } finally {
+                            //ignore the first result when retry calls has been chosen
+                            if (currentSession.get(currentSession.size() - 1)
+                                    instanceof AutoCallLog.AutoCall) {
+                                Log.d("AutoCallItem", "calling result: " + ans
+                                        + ", index = " + listCallingIndex
+                                        + ", count = " + listCallingCount);
+                                ((AutoCallLog.AutoCall) currentSession.get(currentSession.size() - 1)).result = ans ?
+                                        AutoCallLog.AutoCall.RESULT_ANSWERED_OR_REJECTED :
+                                        AutoCallLog.AutoCall.RESULT_NOT_ANSWERED;
+                            }
+                            if (finished) {
+                                int firstNotAnsweredIdx = -1;
+                                for (int i = 0; i < list.size(); ++i) {
+                                    if (!ansOrRejectedNumbers.contains(list.get(i).number)
+                                            && !numberInRejectedNumbers(groups, list.get(i).number)) {
+                                        firstNotAnsweredIdx = i;
+                                        break;
+                                    }
+                                }
+                                if (firstNotAnsweredIdx >= 0) {
+                                    final int tmpIdx = firstNotAnsweredIdx;
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            android.app.AlertDialog dlg = new android.app.AlertDialog.Builder(getApplicationContext())
+                                                    .setTitle(R.string.some_not_answered_title)
+                                                    .setCancelable(false)
+                                                    .setMessage(R.string.some_not_answered_body)
+                                                    .setIcon(android.R.drawable.ic_dialog_info)
+                                                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+
+                                                        public void onClick(DialogInterface dialog, int whichButton) {
+                                                            listCallingCount = 0;
+                                                            listCallingIndex = tmpIdx;
+                                                            currentSession.add(new AutoCallLog.AutoCallRetry());
+                                                            list.save(MainActivity.this);
+                                                            nextCall();
+                                                        }
+                                                    })
+                                                    .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                                                        @Override
+                                                        public void onClick(DialogInterface dialog, int which) {
+                                                            stopAutoCall();
+                                                        }
+                                                    }).create();
+                                            dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+                                            dlg.show();
+                                        }
+                                    });
+                                } else stopAutoCall();
+                            }
+                        }
+                        listItem = list.get(listCallingIndex);
+                        callNumber(listItem.number, listItem.name, listCallingCount,
+                                listItem.callCount);
+                    } catch (Exception ex) { //prevent phone app crash
+                        ex.printStackTrace();
                     }
                 }
-            }
-        }, PhoneStateListener.LISTEN_CALL_STATE);
+            }, WAIT_BETWEEN_CALLS_SECONDS, TimeUnit.SECONDS);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopAutoCall();
+    }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        stopAutoCall();
     }
 
     @Override
@@ -386,7 +381,25 @@ public class MainActivity extends AppCompatActivity {
                                 Snackbar.LENGTH_LONG).setAction("Action", null).show();
                         return;
                     }
-                    setupPhoneListener();
+                    TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+                    if (phoneStateListener != null) {
+                        mTM.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
+                    }
+                    mTM.listen(phoneStateListener = new PhoneStateListener() {
+                        @Override
+                        public void onCallStateChanged(int state, String incomingNumber) {
+                            if (TelephonyManager.CALL_STATE_IDLE == state) {
+                                nextCall();
+                            } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
+                                Application app = Application.getInstance(MainActivity.this);
+                                if (app.verifiedByOutgoingReceiver) {
+                                    runKillAutoCallTask();
+                                    app.lastOutgoingCallStartRinging = new Date();
+                                    app.save(MainActivity.this);
+                                }
+                            }
+                        }
+                    }, PhoneStateListener.LISTEN_CALL_STATE);
                     listCallingCount = 1;
                     listCallingIndex = 0;
                     currentSession = new AutoCallLog.AutoCallSession();

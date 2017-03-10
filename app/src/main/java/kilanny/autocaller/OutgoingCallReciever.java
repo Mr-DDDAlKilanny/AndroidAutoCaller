@@ -19,18 +19,27 @@ public class OutgoingCallReciever extends BroadcastReceiver {
         Log.d("OutgoingCallReciever", intent.toString() + ", call to: " + phoneNumber);
         phoneNumber = phoneNumber.replace(" ", "").trim();
         Application app = Application.getInstance(context);
-        if (app.lastCallNumber != null && app.lastCallNumber.equals(phoneNumber)) {
-            app.verifiedByOutgoingReceiver = true;
-            app.save(context);
-            try {
-                Toast.makeText(context,
-                        context.getString(R.string.toast_display_call_callTo)
-                                + " " + app.lastCallName + " (" + app.lastCallCurrentCount
-                                + " " +  context.getString(R.string.toast_display_call_of)
-                                + " " + app.lastCallTotalCount + ")",
-                        Toast.LENGTH_LONG).show();
-            } catch (Exception ex) {
-                ex.printStackTrace();
+        if (app.lastCallNumber != null) {
+            String other = app.lastCallNumber.replace(" ", "").trim();
+            boolean equals = other.equals(phoneNumber)
+                    || other.endsWith(phoneNumber)
+                    || phoneNumber.endsWith(other);
+            Log.d("OutgoingCallReciever",
+                    String.format("Numbers: %s, %s compare result = %B",
+                            phoneNumber, other, equals));
+            if (equals) {
+                app.verifiedByOutgoingReceiver = true;
+                app.save(context);
+                try {
+                    Toast.makeText(context,
+                            context.getString(R.string.toast_display_call_callTo)
+                                    + " " + app.lastCallName + " (" + app.lastCallCurrentCount
+                                    + " " + context.getString(R.string.toast_display_call_of)
+                                    + " " + app.lastCallTotalCount + ")",
+                            Toast.LENGTH_LONG).show();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
             }
         }
     }
