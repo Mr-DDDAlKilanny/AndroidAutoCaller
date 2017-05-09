@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <CheckBoxPreference
+        android:key="playFinishTune"
+        android:defaultValue="true"
+        android:title="@string/pref_playfinishtune_title"
+        android:summary="@string/pref_playfinishtune_descr"
+        />
+</PreferenceScreen>

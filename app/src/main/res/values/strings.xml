@@ -44,4 +44,8 @@ You can view the log for calls from the above menu.</string>
     <string name="edit_list_name">Edit Call Menu Name</string>
     <string name="set_sched_for_list">Set Calling Schedule</string>
     <string name="delete_list_confirm_body">Are you sure you want to delete this menu? All numbers and groups associated to it will be deleted also.</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="pref_playfinishtune_title">Play Finish Tune</string>
+    <string name="pref_playfinishtune_descr">Play a notification sound when the list is finished</string>
+    <string name="settings">Settings</string>
 </resources>

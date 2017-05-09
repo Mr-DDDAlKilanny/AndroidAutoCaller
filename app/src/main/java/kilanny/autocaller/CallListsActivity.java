@@ -82,6 +82,13 @@ public class CallListsActivity extends AppCompatActivity {
             }
         });
 
+        findViewById(R.id.fabPrefs).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(CallListsActivity.this, PrefsActivity.class));
+            }
+        });
+
         list = ListOfCallingLists.getInstance(this);
         adapter = new ArrayAdapter<ContactsList>(this, android.R.layout.simple_list_item_1, list.toList()) {
             @NonNull

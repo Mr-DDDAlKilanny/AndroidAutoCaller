@@ -4,14 +4,18 @@ import android.Manifest;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.PersistableBundle;
+import android.preference.PreferenceManager;
 import android.provider.CallLog;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
@@ -66,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
     private ContactsList list;
     private PhoneStateListener phoneStateListener;
     private Timer lastTimer;
+    private MediaPlayer mediaPlayer;
 
     private void rebind() {
         list.save(this);
@@ -229,6 +234,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 ansOrRejectedNumbers.add(lastCallNumber);
+                Log.d("runKillAutoCallTask", "Call period timed out. Terminating...");
                 terminateActiveCall();
             }
         }, KILL_CALL_AFTER_SECONDS * 1000);
@@ -298,6 +304,7 @@ public class MainActivity extends AppCompatActivity {
                                                     .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
 
                                                         public void onClick(DialogInterface dialog, int whichButton) {
+                                                            stopFinishRingtune();
                                                             listCallingCount = 0;
                                                             listCallingIndex = tmpIdx;
                                                             currentSession.add(new AutoCallLog.AutoCallRetry());
@@ -308,14 +315,19 @@ public class MainActivity extends AppCompatActivity {
                                                     .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
                                                         @Override
                                                         public void onClick(DialogInterface dialog, int which) {
+                                                            stopFinishRingtune();
                                                             stopAutoCall();
                                                         }
                                                     }).create();
                                             dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
                                             dlg.show();
+                                            playFinishTune();
                                         }
                                     });
-                                } else stopAutoCall();
+                                } else {
+                                    playFinishTune();
+                                    stopAutoCall();
+                                }
                             }
                         }
                         listItem = list.get(listCallingIndex);
@@ -329,16 +341,43 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void stopFinishRingtune() {
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+    }
+
+    private void playFinishTune() {
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+        if (pref.getBoolean("playFinishTune", true)) {
+            stopFinishRingtune();
+            mediaPlayer = MediaPlayer.create(this, R.raw.finish_call);
+            mediaPlayer.setLooping(false);
+            AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            float vol = audioManager.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION);
+            mediaPlayer.setVolume(vol, vol);
+            mediaPlayer.start();
+        }
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopFinishRingtune();
         stopAutoCall();
     }
 
     @Override
     public void onBackPressed() {
         super.onBackPressed();
+        stopFinishRingtune();
         stopAutoCall();
+    }
+
+    private boolean isCalling() {
+        return listCallingIndex != -1 && listCallingIndex < list.size();
     }
 
     @Override
@@ -356,14 +395,33 @@ public class MainActivity extends AppCompatActivity {
                 return Integer.valueOf(lhs.index).compareTo(rhs.index);
             }
         });
-
+        TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+        if (phoneStateListener != null) {
+            mTM.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
+        }
+        mTM.listen(phoneStateListener = new PhoneStateListener() {
+            @Override
+            public void onCallStateChanged(int state, String incomingNumber) {
+                if (!isCalling()) {
+                } else if (TelephonyManager.CALL_STATE_IDLE == state) {
+                    nextCall();
+                } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
+                    Application app = Application.getInstance(MainActivity.this);
+                    if (app.verifiedByOutgoingReceiver) {
+                        runKillAutoCallTask();
+                        app.lastOutgoingCallStartRinging = new Date();
+                        app.save(MainActivity.this);
+                    }
+                }
+            }
+        }, PhoneStateListener.LISTEN_CALL_STATE);
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         if (fab != null) {
             fab.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     //already running?
-                    if (listCallingIndex != -1 && listCallingIndex < list.size()) {
+                    if (isCalling()) {
                         new AlertDialog.Builder(MainActivity.this)
                                 .setTitle(R.string.already_started_msg_title)
                                 .setMessage(R.string.already_started_msg_body)
@@ -381,25 +439,6 @@ public class MainActivity extends AppCompatActivity {
                                 Snackbar.LENGTH_LONG).setAction("Action", null).show();
                         return;
                     }
-                    TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-                    if (phoneStateListener != null) {
-                        mTM.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
-                    }
-                    mTM.listen(phoneStateListener = new PhoneStateListener() {
-                        @Override
-                        public void onCallStateChanged(int state, String incomingNumber) {
-                            if (TelephonyManager.CALL_STATE_IDLE == state) {
-                                nextCall();
-                            } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
-                                Application app = Application.getInstance(MainActivity.this);
-                                if (app.verifiedByOutgoingReceiver) {
-                                    runKillAutoCallTask();
-                                    app.lastOutgoingCallStartRinging = new Date();
-                                    app.save(MainActivity.this);
-                                }
-                            }
-                        }
-                    }, PhoneStateListener.LISTEN_CALL_STATE);
                     listCallingCount = 1;
                     listCallingIndex = 0;
                     currentSession = new AutoCallLog.AutoCallSession();
