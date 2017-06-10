@@ -45,4 +45,8 @@
     <string name="settings">الإعدادات</string>
     <string name="title_activity_maps">الخريطة</string>
     <string name="stop_calls">إيقاف</string>
+    <string name="found_list_in_clipboard_msg">تم العثور على قوائم الاتصال بالحافظة. هل تريد استبدال القائمة الحالية بالقائمة التي تم العثور عليها؟ لا يمكن التراجع عن هذا الإجراء.</string>
+    <string name="found_list_in_clipboard_title">تم العثور على قائمة</string>
+    <string name="load_from_clipboard">تحميل من الحافظة</string>
+    <string name="no_list_in_clipboard">لا يمكن العثور على قوائم الاتصال في الحافظة</string>
 </resources>

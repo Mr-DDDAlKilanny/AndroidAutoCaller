@@ -49,4 +49,9 @@ You can view the log for calls from the above menu.</string>
     <string name="pref_playfinishtune_descr">Play a notification sound when the list is finished</string>
     <string name="settings">Settings</string>
     <string name="stop_calls">Stop Calls</string>
+    <string name="save_to_clipboard">Save to clipboard</string>
+    <string name="load_from_clipboard">Load from clipboard</string>
+    <string name="no_list_in_clipboard">Could not find a valid list in clipboard</string>
+    <string name="found_list_in_clipboard_title">List Found</string>
+    <string name="found_list_in_clipboard_msg">A list found in clipboard. Do you want to replace the current list with the list found? This action cannot be undo.</string>
 </resources>

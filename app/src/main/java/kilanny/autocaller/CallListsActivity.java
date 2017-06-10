@@ -1,6 +1,8 @@
 package kilanny.autocaller;
 
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
@@ -10,6 +12,8 @@ import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -90,6 +94,10 @@ public class CallListsActivity extends AppCompatActivity {
         });
 
         list = ListOfCallingLists.getInstance(this);
+        initListView();
+    }
+
+    private void initListView() {
         adapter = new ArrayAdapter<ContactsList>(this, android.R.layout.simple_list_item_1, list.toList()) {
             @NonNull
             @Override
@@ -181,4 +189,67 @@ public class CallListsActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+
+        if (id == R.id.action_copy_to_clipboard) {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("calling_lists", list.toString());
+            clipboard.setPrimaryClip(clip);
+        } else if (id == R.id.action_get_from_clipboard) {
+            ListOfCallingLists found = null;
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (!clipboard.hasPrimaryClip()) {
+                Toast.makeText(this, getString(R.string.no_list_in_clipboard),
+                        Toast.LENGTH_LONG).show();
+                return true;
+            }
+            for (int i = 0; i < clipboard.getPrimaryClip().getItemCount(); ++i) {
+                try {
+                    ClipData.Item clipDataItem = clipboard.getPrimaryClip().getItemAt(i);
+                    String text = clipDataItem.getText().toString();
+                    ListOfCallingLists list = ListOfCallingLists.parse(text);
+                    if (list != null) {
+                        found = list;
+                        break;
+                    }
+                } catch (Exception ex) {
+                }
+            }
+            final ListOfCallingLists list = found;
+            if (list != null) {
+                new AlertDialog.Builder(this)
+                        .setTitle(getString(R.string.found_list_in_clipboard_title))
+                        .setMessage(getString(R.string.found_list_in_clipboard_msg))
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                CallListsActivity.this.list = list;
+                                list.save(CallListsActivity.this);
+                                initListView();
+                            }
+                        })
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show();
+            }
+            else {
+                Toast.makeText(this, getString(R.string.no_list_in_clipboard),
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.lists_activity_menu, menu);
+        return true;
+    }
 }
