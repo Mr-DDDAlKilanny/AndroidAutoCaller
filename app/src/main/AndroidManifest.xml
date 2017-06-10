@@ -37,23 +37,6 @@
                 <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
             </intent-filter>
         </receiver>
-        <!--
-        <receiver android:name=".CallReceiver" android:enabled="true" >
-            <intent-filter android:priority="99999">
-                <action android:name="android.intent.action.PHONE_STATE" />
-                <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
-            </intent-filter>
-        </receiver>
-
-        <service android:name=".CallAnswerService"/>
-        -->
-        <!--
-        <service
-            android:name=".CallDetectService"
-            android:enabled="true"
-            android:exported="false" >
-        </service>
-        -->
         <activity
             android:name=".ShowLogActivity"
             android:label="@string/action_show_log" />
@@ -67,6 +50,20 @@
 
         <service android:name=".NotifyService" />
         <service android:name=".ScheduleService" />
+        <service
+            android:name=".AutoCallService"
+            android:description="@string/app_name"
+            android:enabled="true"
+            android:exported="false" />
+        <receiver
+            android:name=".AutoCallService$StopButtonListener"
+            android:exported="false" />
+
+        <receiver android:name=".AutoCallPhoneStateListener" >
+            <intent-filter android:priority="99999">
+                <action android:name="android.intent.action.PHONE_STATE" />
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name=".CallListsActivity"

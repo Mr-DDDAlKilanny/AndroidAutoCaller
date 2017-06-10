@@ -1,9 +1,13 @@
 package kilanny.autocaller;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -14,7 +18,9 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.os.PersistableBundle;
+import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.provider.CallLog;
 import android.provider.ContactsContract;
@@ -25,7 +31,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.View;
@@ -47,7 +52,12 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-public class MainActivity extends AppCompatActivity {
+
+import kilanny.autocaller.utils.OsUtils;
+
+public class MainActivity extends AppCompatActivity implements ServiceConnection {
+
+    private static final boolean USE_SERVICE = true;
 
     private static final int CALL_PHONE_PERMISSION_RQUEST = 1992;
     private static final int READ_LOG_PERMISSION_REQUEST = 1994;
@@ -56,6 +66,10 @@ public class MainActivity extends AppCompatActivity {
     private static final int WAIT_BETWEEN_CALLS_SECONDS = 5;
     private static final int NO_REPLY_TIMEOUT_SECONDS = 30 + WAIT_BETWEEN_CALLS_SECONDS;
     private static final int KILL_CALL_AFTER_SECONDS = NO_REPLY_TIMEOUT_SECONDS + 35;
+
+    /** Messenger for communicating with the service. */
+    Messenger mService = null;
+    private boolean isServiceBound = false;
 
     // fields for onRequestPermissionsResult()
     private String lastCallNumber, lastCallName;
@@ -68,9 +82,10 @@ public class MainActivity extends AppCompatActivity {
     private int listCallingCount = 0;
     private AutoCallLog.AutoCallSession currentSession;
     private ContactsList list;
-    private PhoneStateListener phoneStateListener;
+    //private PhoneStateListener phoneStateListener;
     private Timer lastTimer;
     private MediaPlayer mediaPlayer;
+    private BroadcastReceiver phoneStatusChangedBroadcastReceiver;
 
     private void rebind() {
         list.save(this);
@@ -80,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean hasRejectedOrAnsweredOutgoingCall(String number) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG)
-                != PackageManager.PERMISSION_GRANTED) {
+                        != PackageManager.PERMISSION_GRANTED) {
             return true;
         }
         number = number.replace(" ", "").trim();
@@ -342,9 +357,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void stopFinishRingtune() {
+        if (mediaPlayer == null)
+            mediaPlayer = AutoCallService.mediaPlayer;
         if (mediaPlayer != null) {
-            mediaPlayer.stop();
-            mediaPlayer.release();
+            try {
+                mediaPlayer.stop();
+                mediaPlayer.release();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
             mediaPlayer = null;
         }
     }
@@ -365,15 +386,29 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        myFinish();
+    }
+
+    private void myFinish() {
+        if (USE_SERVICE) {
+            if (isServiceBound) {
+                unbindService(this);
+                isServiceBound = false;
+            }
+        } else {
+            stopAutoCall();
+        }
         stopFinishRingtune();
-        stopAutoCall();
+        if (phoneStatusChangedBroadcastReceiver != null) {
+            unregisterReceiver(phoneStatusChangedBroadcastReceiver);
+            phoneStatusChangedBroadcastReceiver = null;
+        }
     }
 
     @Override
     public void onBackPressed() {
         super.onBackPressed();
-        stopFinishRingtune();
-        stopAutoCall();
+        myFinish();
     }
 
     private boolean isCalling() {
@@ -387,7 +422,8 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         Intent intent = getIntent();
-        list = ListOfCallingLists.getInstance(this).getById(intent.getIntExtra("list", -1));
+        final int callListId = intent.getIntExtra("list", -1);
+        list = ListOfCallingLists.getInstance(this).getById(callListId);
         setTitle(list.getName());
         Collections.sort(list, new Comparator<ContactsListItem>() {
             @Override
@@ -395,33 +431,73 @@ public class MainActivity extends AppCompatActivity {
                 return Integer.valueOf(lhs.index).compareTo(rhs.index);
             }
         });
-        TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-        if (phoneStateListener != null) {
-            mTM.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
-        }
-        mTM.listen(phoneStateListener = new PhoneStateListener() {
-            @Override
-            public void onCallStateChanged(int state, String incomingNumber) {
-                if (!isCalling()) {
-                } else if (TelephonyManager.CALL_STATE_IDLE == state) {
-                    nextCall();
-                } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
-                    Application app = Application.getInstance(MainActivity.this);
-                    if (app.verifiedByOutgoingReceiver) {
-                        runKillAutoCallTask();
-                        app.lastOutgoingCallStartRinging = new Date();
-                        app.save(MainActivity.this);
+        final Intent serviceIntent = new Intent(MainActivity.this, AutoCallService.class);
+        serviceIntent.putExtra("callListId", callListId);
+        if (!USE_SERVICE) {
+            /*TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+            if (phoneStateListener != null) {
+                mTM.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
+            }
+            mTM.listen(phoneStateListener = new PhoneStateListener() {
+                @Override
+                public void onCallStateChanged(int state, String incomingNumber) {
+                    if (!isCalling()) {
+                    } else if (TelephonyManager.CALL_STATE_IDLE == state) {
+                        nextCall();
+                    } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
+                        Application app = Application.getInstance(MainActivity.this);
+                        if (app.verifiedByOutgoingReceiver) {
+                            runKillAutoCallTask();
+                            app.lastOutgoingCallStartRinging = new Date();
+                            app.save(MainActivity.this);
+                        }
                     }
                 }
-            }
-        }, PhoneStateListener.LISTEN_CALL_STATE);
+            }, PhoneStateListener.LISTEN_CALL_STATE);*/
+            registerReceiver(phoneStatusChangedBroadcastReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    int state = intent.getIntExtra("state", -1);
+                    if (!isCalling()) {
+                    } else if (TelephonyManager.CALL_STATE_IDLE == state) {
+                        nextCall();
+                    } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
+                        Application app = Application.getInstance(MainActivity.this);
+                        if (app.verifiedByOutgoingReceiver) {
+                            runKillAutoCallTask();
+                            app.lastOutgoingCallStartRinging = new Date();
+                            app.save(MainActivity.this);
+                        }
+                    }
+                }
+            }, new IntentFilter(AutoCallPhoneStateListener.BROADCAST_ACTION));
+            /*AutoCallPhoneStateListener.setCallback(new PhoneListenerCallback() {
+                @Override
+                public void onStateChanged(int state) {
+                    if (!isCalling()) {
+                    } else if (TelephonyManager.CALL_STATE_IDLE == state) {
+                        nextCall();
+                    } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
+                        Application app = Application.getInstance(MainActivity.this);
+                        if (app.verifiedByOutgoingReceiver) {
+                            runKillAutoCallTask();
+                            app.lastOutgoingCallStartRinging = new Date();
+                            app.save(MainActivity.this);
+                        }
+                    }
+                }
+            });*/
+        }
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         if (fab != null) {
             fab.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     //already running?
-                    if (isCalling()) {
+                    if (USE_SERVICE ?
+                            OsUtils.isServiceRunning(MainActivity.this,
+                                    AutoCallService.class)
+                            : isCalling()) {
                         new AlertDialog.Builder(MainActivity.this)
                                 .setTitle(R.string.already_started_msg_title)
                                 .setMessage(R.string.already_started_msg_body)
@@ -429,7 +505,12 @@ public class MainActivity extends AppCompatActivity {
                                 .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
 
                                     public void onClick(DialogInterface dialog, int whichButton) {
-                                        stopAutoCall();
+                                        if (USE_SERVICE) {
+                                            sendServiceMessage(AutoCallService.MESSAGE_EXIT);
+                                        }
+                                        else {
+                                            stopAutoCall();
+                                        }
                                     }})
                                 .setNegativeButton(android.R.string.no, null).show();
                         return;
@@ -439,15 +520,20 @@ public class MainActivity extends AppCompatActivity {
                                 Snackbar.LENGTH_LONG).setAction("Action", null).show();
                         return;
                     }
-                    listCallingCount = 1;
-                    listCallingIndex = 0;
-                    currentSession = new AutoCallLog.AutoCallSession();
-                    currentSession.date = new Date();
-                    list.getLog().sessions.add(currentSession);
-                    list.save(MainActivity.this);
-                    ansOrRejectedNumbers.clear();
-                    callNumber(list.get(listCallingIndex).number, list.get(listCallingIndex).name,
-                            1, list.get(listCallingIndex).callCount);
+                    if (!USE_SERVICE) {
+                        listCallingCount = 1;
+                        listCallingIndex = 0;
+                        currentSession = new AutoCallLog.AutoCallSession();
+                        currentSession.date = new Date();
+                        list.getLog().sessions.add(currentSession);
+                        list.save(MainActivity.this);
+                        ansOrRejectedNumbers.clear();
+                        callNumber(list.get(listCallingIndex).number, list.get(listCallingIndex).name,
+                                1, list.get(listCallingIndex).callCount);
+                    } else {
+                        startService(serviceIntent);
+                        bindService(serviceIntent, MainActivity.this, 0);
+                    }
                     Snackbar.make(view, R.string.toast_starting_calls, Snackbar.LENGTH_LONG)
                             .setAction("Action", null).show();
                 }
@@ -526,11 +612,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopAutoCall() {
         cancelCallHangupTimer();
-        if (phoneStateListener != null) {
+        /*if (phoneStateListener != null) {
             TelephonyManager mTM = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
             mTM.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
             phoneStateListener = null;
-        }
+        }*/
         //iHaveStartedTheOutgoingCall = false;
         listCallingIndex = -1;
         Application app = Application.getInstance(this);
@@ -592,6 +678,20 @@ public class MainActivity extends AppCompatActivity {
                     != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[] {Manifest.permission.READ_CALL_LOG},
                         READ_LOG_PERMISSION_REQUEST);
+            }
+        }
+        if (USE_SERVICE) {
+            bindService(new Intent(this, AutoCallService.class), this, 0);
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (USE_SERVICE) {
+            if (isServiceBound) {
+                unbindService(this);
+                isServiceBound = false;
             }
         }
     }
@@ -709,5 +809,28 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void onServiceConnected(ComponentName name, IBinder service) {
+        mService = new Messenger(service);
+        isServiceBound = true;
+    }
+
+    @Override
+    public void onServiceDisconnected(ComponentName name) {
+        mService = null;
+        isServiceBound = false;
+    }
+
+    private void sendServiceMessage(int message) {
+        if (mService == null) return;
+        // Create and send a message to the service, using a supported 'what' value
+        Message msg = Message.obtain(null, message, 0, 0);
+        try {
+            mService.send(msg);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 }
