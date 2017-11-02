@@ -17,7 +17,7 @@
     <string name="delete_log_confirm_title">حذف السجل</string>
     <string name="toast_display_call_callTo">مكالمة آلية إلى </string>
     <string name="toast_display_call_of"> من </string>
-    <string name="toast_please_add_items">الرجاء إضافة رقم واحد على الأقل للقائمة أولا</string>
+    <string name="toast_please_add_items">الرجاء إضافة اسم واحد على الأقل للقائمة أولا</string>
     <string name="toast_starting_calls">يتم الاتصال بالأرقام في القائمة…</string>
     <string name="title_activity_set_notification_time">وقت التنبيه</string>
     <string name="some_not_answered_body">بعض الأرقام في القائمة لم ترد. إعادة المحاولة مع هذه الأرقام؟</string>
@@ -49,4 +49,10 @@
     <string name="found_list_in_clipboard_title">تم العثور على قائمة</string>
     <string name="load_from_clipboard">تحميل من الحافظة</string>
     <string name="no_list_in_clipboard">لا يمكن العثور على قوائم الاتصال في الحافظة</string>
+    <string name="auto_recall_count_summary">عدد مرات إعادة الاتصال بالأرقام التي لم ترد في القائمة</string>
+    <string name="auto_recall_count_array_default_name">بلا إعادة اتصال</string>
+    <string name="auto_recall_count">مرات إعادة الاتصال</string>
+    <string name="save_to_clipboard"></string>
+    <string name="stopping_auto_calls">جاري إيقاف المكالمات...</string>
+    <string name="mission_permissions_msg">لم يتم منح التطبيق صلاحيات التشغيل. الرجاء منح التطبيق الصلاحيات من ضبط الهاتف</string>
 </resources>

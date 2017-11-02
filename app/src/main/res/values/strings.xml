@@ -21,7 +21,7 @@ You can view the log for calls from the above menu.</string>
     <string name="toast_display_call_of"> Of </string>
     <string name="already_started_msg_title">Auto Calls</string>
     <string name="already_started_msg_body">Auto calls have been already started. Do you want to stop it now?</string>
-    <string name="toast_please_add_items">Please add at least one item to the list first</string>
+    <string name="toast_please_add_items">Please add at least one contact to the list first</string>
     <string name="toast_starting_calls">Calling the numbers in list…</string>
     <string name="title_activity_set_notification_time">Notification Time</string>
     <string name="some_not_answered_title">Auto Caller</string>
@@ -54,4 +54,9 @@ You can view the log for calls from the above menu.</string>
     <string name="no_list_in_clipboard">Could not find a valid list in clipboard</string>
     <string name="found_list_in_clipboard_title">List Found</string>
     <string name="found_list_in_clipboard_msg">A list found in clipboard. Do you want to replace the current list with the list found? This action cannot be undo.</string>
+    <string name="auto_recall_count">Auto Recall Count</string>
+    <string name="auto_recall_count_summary">Count of times automatically recalling not answering numbers in list</string>
+    <string name="auto_recall_count_array_default_name">No Automatic recall</string>
+    <string name="stopping_auto_calls">Stopping Auto Calls...</string>
+    <string name="mission_permissions_msg">Missing Permissions. Cannot start calls. Please allow permissions for this app from your device settings</string>
 </resources>

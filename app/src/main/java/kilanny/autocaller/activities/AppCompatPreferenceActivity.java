@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.activities;
 
 import android.content.res.Configuration;
 import android.os.Bundle;

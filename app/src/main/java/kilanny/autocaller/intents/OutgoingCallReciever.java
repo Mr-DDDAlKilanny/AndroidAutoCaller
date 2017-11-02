@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.intents;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.util.Log;
 import android.widget.Toast;
 
+import kilanny.autocaller.Application;
 import kilanny.autocaller.utils.TextUtils;
 
 /**
@@ -19,10 +20,10 @@ public class OutgoingCallReciever extends BroadcastReceiver {
         if (phoneNumber == null)
             return; //potential bug
         Log.d("OutgoingCallReciever", intent.toString() + ", call to: " + phoneNumber);
-        phoneNumber = phoneNumber.replace(" ", "").trim();
+        phoneNumber = TextUtils.fixPhoneNumber(phoneNumber);
         Application app = Application.getInstance(context);
         if (app.lastCallNumber != null) {
-            String other = app.lastCallNumber.replace(" ", "").trim();
+            String other = TextUtils.fixPhoneNumber(app.lastCallNumber);
             boolean equals = other.equals(phoneNumber)
                     || other.endsWith(phoneNumber)
                     || phoneNumber.endsWith(other);

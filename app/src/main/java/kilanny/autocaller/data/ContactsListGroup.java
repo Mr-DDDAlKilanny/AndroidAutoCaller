@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.data;
 
 import java.io.Serializable;
 import java.util.HashMap;

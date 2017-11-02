@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -16,7 +16,12 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.atomic.AtomicReference;
+
+import kilanny.autocaller.data.AutoCallLog;
+import kilanny.autocaller.data.ContactsList;
+import kilanny.autocaller.adapters.ExpandableListAdapter;
+import kilanny.autocaller.data.ListOfCallingLists;
+import kilanny.autocaller.R;
 
 public class ShowLogActivity extends AppCompatActivity {
 
@@ -58,7 +63,8 @@ public class ShowLogActivity extends AppCompatActivity {
         //test if default locale is not working, replace with US
         if (Character.isDigit(dateFormat.format(new Date()).charAt(0)))
             dateFormat = new SimpleDateFormat("EEEE, MMMM d, yyyy HH:mm", Locale.US);
-        for (AutoCallLog.AutoCallSession session : list.getLog().sessions) {
+        for (int i = list.getLog().sessions.size() - 1; i >= 0; --i) {
+            AutoCallLog.AutoCallSession session = list.getLog().sessions.get(i);
             String head = dateFormat.format(session.date);
             listDataHeader.add(head);
             ArrayList<String> childs = new ArrayList<>();

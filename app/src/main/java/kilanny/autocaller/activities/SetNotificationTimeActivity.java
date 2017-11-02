@@ -1,8 +1,6 @@
-package kilanny.autocaller;
+package kilanny.autocaller.activities;
 
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
@@ -10,6 +8,9 @@ import android.widget.DatePicker;
 import android.widget.Toast;
 
 import java.util.Calendar;
+
+import kilanny.autocaller.R;
+import kilanny.autocaller.services.ScheduleClient;
 
 public class SetNotificationTimeActivity extends AppCompatActivity {
 

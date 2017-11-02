@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.services;
 
 import android.Manifest;
 import android.app.Notification;
@@ -45,6 +45,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import kilanny.autocaller.Application;
+import kilanny.autocaller.data.AutoCallLog;
+import kilanny.autocaller.intents.AutoCallPhoneStateListener;
+import kilanny.autocaller.data.ContactsList;
+import kilanny.autocaller.data.ContactsListGroup;
+import kilanny.autocaller.data.ContactsListGroupList;
+import kilanny.autocaller.data.ContactsListItem;
+import kilanny.autocaller.data.ListOfCallingLists;
+import kilanny.autocaller.activities.MainActivity;
+import kilanny.autocaller.R;
 import kilanny.autocaller.utils.TextUtils;
 
 /**
@@ -85,11 +95,11 @@ public class AutoCallService extends Service {
     private RemoteViews notificationRemoteViews;
     private BroadcastReceiver phoneStatusChangedBroadcastReceiver;
 
-    private String lastCallNumber, lastCallName;
-    private int lastCallCurrentCount, lastCallTotalCount;
-    private int listCallingIndex = -1;
+    private int listCurrentCallItemIdx = -1;
+    private int listCurrentCallItemCount = 0;
+    private int listAutoRecallCount = 0;
     private final HashSet<String> ansOrRejectedNumbers = new HashSet<>();
-    private int listCallingCount = 0;
+
     private AutoCallLog.AutoCallSession currentSession;
     private ContactsList list;
     private Timer autoHangupTimer, phoneAppCrashNotificationTimer;
@@ -98,7 +108,7 @@ public class AutoCallService extends Service {
     /**
      * Handler of incoming messages from clients.
      */
-    class IncomingHandler extends Handler {
+    private static class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
@@ -116,15 +126,17 @@ public class AutoCallService extends Service {
      */
     final Messenger mMessenger = new Messenger(new IncomingHandler());
 
-    private void myStopSelf() {
-        if (phoneStatusChangedBroadcastReceiver != null) {
-            unregisterReceiver(phoneStatusChangedBroadcastReceiver);
-            phoneStatusChangedBroadcastReceiver = null;
-        }
-        if (lastServiceStartId != -1) {
-            int tmp = lastServiceStartId;
-            lastServiceStartId = -1;
-            stopSelf(tmp);
+    private static void myStopSelf() {
+        if (_lastInstance != null) {
+            if (_lastInstance.phoneStatusChangedBroadcastReceiver != null) {
+                _lastInstance.unregisterReceiver(_lastInstance.phoneStatusChangedBroadcastReceiver);
+                _lastInstance.phoneStatusChangedBroadcastReceiver = null;
+            }
+            if (_lastInstance.lastServiceStartId != -1) {
+                int tmp = _lastInstance.lastServiceStartId;
+                _lastInstance.lastServiceStartId = -1;
+                _lastInstance.stopSelf(tmp);
+            }
         }
     }
 
@@ -185,7 +197,7 @@ public class AutoCallService extends Service {
                 _lastInstance.canMakeCalls.set(false);
                 _lastInstance.stopAutoCall(true);
             }
-            Toast.makeText(context, "Stopping...", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, R.string.stopping_auto_calls, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -252,7 +264,7 @@ public class AutoCallService extends Service {
             @Override
             public void onReceive(Context context, Intent intent) {
                 int state = intent.getIntExtra("state", -1);
-                if (canMakeCalls == null || listCallingIndex == -1) {
+                if (canMakeCalls == null || listCurrentCallItemIdx == -1) {
                     // just for handling the first time CALL_STATE_IDLE
                 } else if (TelephonyManager.CALL_STATE_IDLE == state) {
                     cancelPhoneAppCrashNotificationTimer();
@@ -273,7 +285,7 @@ public class AutoCallService extends Service {
         /*AutoCallPhoneStateListener.setCallback(new PhoneListenerCallback() {
             @Override
             public void onStateChanged(int state) {
-                if (canMakeCalls == null || listCallingIndex == -1) {
+                if (canMakeCalls == null || listCurrentCallItemIdx == -1) {
                     // just for handling the first time CALL_STATE_IDLE
                 } else if (TelephonyManager.CALL_STATE_IDLE == state) {
                     if (!canMakeCalls.get())
@@ -445,6 +457,34 @@ public class AutoCallService extends Service {
         }
     }
 
+    @Deprecated
+    public boolean killCall(TelephonyManager telephonyManager) {
+        try {
+            // Get the getITelephony() method
+            Class classTelephony = Class.forName(telephonyManager.getClass().getName());
+            Method methodGetITelephony = classTelephony.getDeclaredMethod("getITelephony");
+
+            // Ignore that the method is supposed to be private
+            methodGetITelephony.setAccessible(true);
+
+            // Invoke getITelephony() to get the ITelephony interface
+            Object telephonyInterface = methodGetITelephony.invoke(telephonyManager);
+
+            // Get the endCall method from ITelephony
+            Class telephonyInterfaceClass =
+                    Class.forName(telephonyInterface.getClass().getName());
+            Method methodEndCall = telephonyInterfaceClass.getDeclaredMethod("endCall");
+
+            // Invoke endCall()
+            methodEndCall.invoke(telephonyInterface);
+
+        } catch (Exception ex) { // Many things can go wrong with reflection calls
+            Log.d("killCall", "PhoneStateReceiver **" + ex.toString());
+            return false;
+        }
+        return true;
+    }
+
     private void cancelCallHangupTimer() {
         cancelPhoneAppCrashNotificationTimer();
         if (autoHangupTimer != null) {
@@ -460,6 +500,9 @@ public class AutoCallService extends Service {
         }
     }
 
+    /**
+     * TODO: fix: timers in service not working. Use AlarmService instead
+     */
     private void runPhoneAppCrashNotificationTimer() {
         cancelPhoneAppCrashNotificationTimer();
         phoneAppCrashNotificationTimer = new Timer();
@@ -479,7 +522,8 @@ public class AutoCallService extends Service {
         autoHangupTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                ansOrRejectedNumbers.add(lastCallNumber);
+                Application application = Application.getInstance(AutoCallService.this);
+                ansOrRejectedNumbers.add(application.lastCallNumber);
                 Log.d("runKillAutoCallTask", "Call period timed out. Terminating...");
                 terminateActiveCall();
             }
@@ -499,20 +543,20 @@ public class AutoCallService extends Service {
                         boolean ans = false;
                         boolean finished = false;
                         if (!Application.getInstance(AutoCallService.this)
-                                .verifiedByOutgoingReceiver || listCallingIndex == -1)
+                                .verifiedByOutgoingReceiver || listCurrentCallItemIdx == -1)
                             return; // stopped by user
-                        ContactsListItem listItem = list.get(listCallingIndex);
+                        ContactsListItem listItem = list.get(listCurrentCallItemIdx);
                         try {
                             if ((ans = hasRejectedOrAnsweredOutgoingCall(listItem.number))
-                                    || ++listCallingCount > listItem.callCount) {
-                                listCallingCount = 1;
+                                    || ++listCurrentCallItemCount > listItem.callCount) {
+                                listCurrentCallItemCount = 1;
                                 if (ans)
                                     ansOrRejectedNumbers.add(listItem.number);
-                                while (++listCallingIndex < list.size() && (
-                                        ansOrRejectedNumbers.contains(list.get(listCallingIndex).number)
-                                                || numberInRejectedNumbers(groups, list.get(listCallingIndex).number))) {
+                                while (++listCurrentCallItemIdx < list.size() && (
+                                        ansOrRejectedNumbers.contains(list.get(listCurrentCallItemIdx).number)
+                                                || numberInRejectedNumbers(groups, list.get(listCurrentCallItemIdx).number))) {
                                 }
-                                if (listCallingIndex >= list.size()) {
+                                if (listCurrentCallItemIdx >= list.size()) {
                                     finished = true;
                                     return;
                                 }
@@ -522,8 +566,8 @@ public class AutoCallService extends Service {
                             if (currentSession.get(currentSession.size() - 1)
                                     instanceof AutoCallLog.AutoCall) {
                                 Log.d("AutoCallItem", "calling result: " + ans
-                                        + ", index = " + listCallingIndex
-                                        + ", count = " + listCallingCount);
+                                        + ", index = " + listCurrentCallItemIdx
+                                        + ", count = " + listCurrentCallItemCount);
                                 ((AutoCallLog.AutoCall) currentSession.get(currentSession.size() - 1)).result = ans ?
                                         AutoCallLog.AutoCall.RESULT_ANSWERED_OR_REJECTED :
                                         AutoCallLog.AutoCall.RESULT_NOT_ANSWERED;
@@ -539,45 +583,56 @@ public class AutoCallService extends Service {
                                 }
                                 if (firstNotAnsweredIdx >= 0) {
                                     final int tmpIdx = firstNotAnsweredIdx;
-                                    runOnUiThread(new Runnable() {
+                                    final Runnable recallRunnable = new Runnable() {
                                         @Override
                                         public void run() {
-                                            android.app.AlertDialog dlg = new android.app.AlertDialog.Builder(getApplicationContext())
-                                                    .setTitle(R.string.some_not_answered_title)
-                                                    .setCancelable(false)
-                                                    .setMessage(R.string.some_not_answered_body)
-                                                    .setIcon(android.R.drawable.ic_dialog_info)
-                                                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-
-                                                        public void onClick(DialogInterface dialog, int whichButton) {
-                                                            stopFinishRingtune();
-                                                            listCallingCount = 0;
-                                                            listCallingIndex = tmpIdx;
-                                                            currentSession.add(new AutoCallLog.AutoCallRetry());
-                                                            list.save(AutoCallService.this);
-                                                            nextCall();
-                                                        }
-                                                    })
-                                                    .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-                                                        @Override
-                                                        public void onClick(DialogInterface dialog, int which) {
-                                                            stopFinishRingtune();
-                                                            stopAutoCall(true);
-                                                        }
-                                                    }).create();
-                                            dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-                                            dlg.show();
-                                            playFinishTune();
+                                            listCurrentCallItemCount = 0;
+                                            listCurrentCallItemIdx = tmpIdx;
+                                            currentSession.add(new AutoCallLog.AutoCallRetry());
+                                            list.save(AutoCallService.this);
+                                            nextCall();
                                         }
-                                    });
+                                    };
+                                    if (getNumAutoRecallList() > listAutoRecallCount) {
+                                        ++listAutoRecallCount;
+                                        recallRunnable.run();
+                                    } else {
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                android.app.AlertDialog dlg = new android.app.AlertDialog.Builder(getApplicationContext())
+                                                        .setTitle(R.string.some_not_answered_title)
+                                                        .setCancelable(false)
+                                                        .setMessage(R.string.some_not_answered_body)
+                                                        .setIcon(android.R.drawable.ic_dialog_info)
+                                                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+
+                                                            public void onClick(DialogInterface dialog, int whichButton) {
+                                                                stopFinishRingtune();
+                                                                recallRunnable.run();
+                                                            }
+                                                        })
+                                                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                                                            @Override
+                                                            public void onClick(DialogInterface dialog, int which) {
+                                                                stopFinishRingtune();
+                                                                stopAutoCall(true);
+                                                            }
+                                                        }).create();
+                                                dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+                                                dlg.show();
+                                                playFinishTuneIfRequired();
+                                            }
+                                        });
+                                    }
                                 } else {
-                                    playFinishTune();
+                                    playFinishTuneIfRequired();
                                     stopAutoCall(true);
                                 }
                             }
                         }
-                        listItem = list.get(listCallingIndex);
-                        callNumber(listItem.number, listItem.name, listCallingCount,
+                        listItem = list.get(listCurrentCallItemIdx);
+                        callNumber(listItem.number, listItem.name, listCurrentCallItemCount,
                                 listItem.callCount);
                     } catch (Exception ex) { //prevent phone app crash
                         ex.printStackTrace();
@@ -587,7 +642,7 @@ public class AutoCallService extends Service {
         }
     }
 
-    private void stopFinishRingtune() {
+    public static void stopFinishRingtune() {
         if (mediaPlayer != null) {
             mediaPlayer.stop();
             mediaPlayer.release();
@@ -595,23 +650,34 @@ public class AutoCallService extends Service {
         }
     }
 
-    private void playFinishTune() {
+    private void playFinishTuneIfRequired() {
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-        if (pref.getBoolean("playFinishTune", true)) {
-            stopFinishRingtune();
-            mediaPlayer = MediaPlayer.create(this, R.raw.finish_call);
-            mediaPlayer.setLooping(false);
-            AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-            float vol = audioManager.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION);
-            mediaPlayer.setVolume(vol, vol);
-            mediaPlayer.start();
+        if (pref.getBoolean("playFinishTuneIfRequired", true)) {
+            playFinishTune();
         }
+    }
+
+    private void playFinishTune() {
+        stopFinishRingtune();
+        mediaPlayer = MediaPlayer.create(this, R.raw.finish_call);
+        mediaPlayer.setLooping(false);
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        float vol = audioManager.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION);
+        mediaPlayer.setVolume(vol, vol);
+        mediaPlayer.start();
+    }
+
+    private int getNumAutoRecallList() {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        String string = preferences.getString("autoRecallListNo",
+                getString(R.string.auto_recall_count_array_default_value));
+        return Integer.parseInt(string);
     }
 
     private void stopAutoCall(boolean shouldStopSelf) {
         cancelCallHangupTimer();
         //iHaveStartedTheOutgoingCall = false;
-        listCallingIndex = -1;
+        listCurrentCallItemIdx = -1;
         Application app = Application.getInstance(this);
         app.lastCallNumber = null;
         app.verifiedByOutgoingReceiver = false;
@@ -640,12 +706,7 @@ public class AutoCallService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE)
                     != PackageManager.PERMISSION_GRANTED) {
-                lastCallNumber = number;
-                lastCallName = name;
-                lastCallCurrentCount = currentCallCount;
-                lastCallTotalCount = totalCallCount;
-                //requestPermissions(new String[] {Manifest.permission.CALL_PHONE}, CALL_PHONE_PERMISSION_RQUEST);
-                return;
+                throw new IllegalStateException("Permissions must be fully granted to current app before starting the service");
             }
         }
 
@@ -677,15 +738,17 @@ public class AutoCallService extends Service {
         }
         @Override
         public void handleMessage(Message msg) {
-            listCallingCount = 1;
-            listCallingIndex = 0;
+            listCurrentCallItemCount = 1;
+            listCurrentCallItemIdx = 0;
+            listAutoRecallCount = 0;
             currentSession = new AutoCallLog.AutoCallSession();
             currentSession.date = new Date();
             list.getLog().sessions.add(currentSession);
             list.save(AutoCallService.this);
             ansOrRejectedNumbers.clear();
-            callNumber(list.get(listCallingIndex).number, list.get(listCallingIndex).name,
-                    1, list.get(listCallingIndex).callCount);
+            callNumber(list.get(listCurrentCallItemIdx).number,
+                    list.get(listCurrentCallItemIdx).name,
+                    1, list.get(listCurrentCallItemIdx).callCount);
             // Stop the service using the startId, so that we don't stop
             // the service in the middle of handling another job
             //stopSelf(msg.arg1);

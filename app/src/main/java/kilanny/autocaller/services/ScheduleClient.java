@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.services;
 
 import java.util.Calendar;
 
@@ -7,6 +7,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
+
+import kilanny.autocaller.services.ScheduleService;
 
 /**
  * This is our service client, it is the 'middle-man' between the

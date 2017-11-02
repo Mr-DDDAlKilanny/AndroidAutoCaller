@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.services;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -8,6 +8,9 @@ import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
+
+import kilanny.autocaller.activities.MainActivity;
+import kilanny.autocaller.R;
 
 /**
  * This service is started when an Alarm has been raised

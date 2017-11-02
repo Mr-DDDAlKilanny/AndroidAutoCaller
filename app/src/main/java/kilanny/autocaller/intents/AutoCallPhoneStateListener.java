@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.intents;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;

@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.services;
 
 import java.util.Calendar;
 

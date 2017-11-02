@@ -14,7 +14,7 @@
          Google Maps Android API v2, but you must specify either coarse or fine
          location permissions for the 'MyLocation' functionality. 
     -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!--<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />-->
 
     <application
         android:allowBackup="true"
@@ -23,50 +23,50 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
-            android:name=".MainActivity"
+            android:name=".activities.MainActivity"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar" />
 
         <activity
-            android:name=".PrefsActivity"
+            android:name=".activities.PrefsActivity"
             android:label="@string/settings"
-            android:parentActivityName=".CallListsActivity" />
+            android:parentActivityName=".activities.CallListsActivity" />
 
-        <receiver android:name=".OutgoingCallReciever">
+        <receiver android:name=".intents.OutgoingCallReciever">
             <intent-filter>
                 <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
             </intent-filter>
         </receiver>
         <activity
-            android:name=".ShowLogActivity"
+            android:name=".activities.ShowLogActivity"
             android:label="@string/action_show_log" />
         <activity
-            android:name=".EditGroupsActivity"
+            android:name=".activities.EditGroupsActivity"
             android:label="@string/action_edit_group" />
         <activity
-            android:name=".SetNotificationTimeActivity"
+            android:name=".activities.SetNotificationTimeActivity"
             android:label="@string/title_activity_set_notification_time"
             android:theme="@style/AppTheme.NoActionBar" />
 
-        <service android:name=".NotifyService" />
-        <service android:name=".ScheduleService" />
+        <service android:name=".services.NotifyService" />
+        <service android:name=".services.ScheduleService" />
         <service
-            android:name=".AutoCallService"
+            android:name=".services.AutoCallService"
             android:description="@string/app_name"
             android:enabled="true"
             android:exported="false" />
         <receiver
-            android:name=".AutoCallService$StopButtonListener"
+            android:name=".services.AutoCallService$StopButtonListener"
             android:exported="false" />
 
-        <receiver android:name=".AutoCallPhoneStateListener" >
+        <receiver android:name=".intents.AutoCallPhoneStateListener" >
             <intent-filter android:priority="99999">
                 <action android:name="android.intent.action.PHONE_STATE" />
             </intent-filter>
         </receiver>
 
         <activity
-            android:name=".CallListsActivity"
+            android:name=".activities.CallListsActivity"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
@@ -88,7 +88,7 @@
             android:value="@string/google_maps_key" />
 
         <activity
-            android:name=".MapsActivity"
+            android:name=".activities.MapsActivity"
             android:label="@string/title_activity_maps"></activity>
     </application>
 

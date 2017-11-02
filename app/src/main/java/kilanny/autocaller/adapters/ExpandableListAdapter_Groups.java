@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.adapters;
 
 import android.content.Context;
 import android.content.DialogInterface;
@@ -13,6 +13,11 @@ import android.widget.TextView;
 
 import java.util.HashMap;
 import java.util.List;
+
+import kilanny.autocaller.R;
+import kilanny.autocaller.data.ContactsList;
+import kilanny.autocaller.data.ContactsListGroup;
+import kilanny.autocaller.data.ContactsListGroupList;
 
 public class ExpandableListAdapter_Groups extends BaseExpandableListAdapter {
 

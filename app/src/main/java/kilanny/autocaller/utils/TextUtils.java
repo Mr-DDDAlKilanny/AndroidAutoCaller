@@ -22,5 +22,13 @@ public final class TextUtils {
                 + " " + lastCallTotalCount + ")";
     }
 
+    public static String fixPhoneNumber(String n) {
+        return n.replace("(", "")
+                .replace(")", "")
+                .replace("-", "")
+                .replace(" ", "")
+                .trim();
+    }
+
     private TextUtils() {}
 }

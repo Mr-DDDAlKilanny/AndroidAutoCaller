@@ -1,4 +1,4 @@
-package kilanny.autocaller.utils;
+package kilanny.autocaller.data;
 
 import java.io.Serializable;
 

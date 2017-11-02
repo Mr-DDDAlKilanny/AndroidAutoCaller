@@ -1,8 +1,6 @@
-package kilanny.autocaller;
+package kilanny.autocaller.activities;
 
 import android.app.AlertDialog;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
@@ -11,9 +9,6 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -23,14 +18,22 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.concurrent.atomic.AtomicReference;
-
+import kilanny.autocaller.data.ContactsList;
+import kilanny.autocaller.data.ListOfCallingLists;
+import kilanny.autocaller.R;
+import kilanny.autocaller.serializers.BinarySerializer;
 import kilanny.autocaller.utils.ResultCallback;
 
 public class CallListsActivity extends AppCompatActivity {
 
     private ArrayAdapter<ContactsList> adapter;
     private ListOfCallingLists list;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        //TODO: display a dialog if the list is empty to help user
+    }
 
     private void inputString(String title, String initValue,
                              final ResultCallback<String> resultCallback) {
@@ -93,6 +96,8 @@ public class CallListsActivity extends AppCompatActivity {
             }
         });
 
+        //TODO: use a dependency injection container
+        ListOfCallingLists.setSerializer(new BinarySerializer());
         list = ListOfCallingLists.getInstance(this);
         initListView();
     }
@@ -187,69 +192,5 @@ public class CallListsActivity extends AppCompatActivity {
                 return true;
             }
         });
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        if (id == R.id.action_copy_to_clipboard) {
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("calling_lists", list.toString());
-            clipboard.setPrimaryClip(clip);
-        } else if (id == R.id.action_get_from_clipboard) {
-            ListOfCallingLists found = null;
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            if (!clipboard.hasPrimaryClip()) {
-                Toast.makeText(this, getString(R.string.no_list_in_clipboard),
-                        Toast.LENGTH_LONG).show();
-                return true;
-            }
-            for (int i = 0; i < clipboard.getPrimaryClip().getItemCount(); ++i) {
-                try {
-                    ClipData.Item clipDataItem = clipboard.getPrimaryClip().getItemAt(i);
-                    String text = clipDataItem.getText().toString();
-                    ListOfCallingLists list = ListOfCallingLists.parse(text);
-                    if (list != null) {
-                        found = list;
-                        break;
-                    }
-                } catch (Exception ex) {
-                }
-            }
-            final ListOfCallingLists list = found;
-            if (list != null) {
-                new AlertDialog.Builder(this)
-                        .setTitle(getString(R.string.found_list_in_clipboard_title))
-                        .setMessage(getString(R.string.found_list_in_clipboard_msg))
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                CallListsActivity.this.list = list;
-                                list.save(CallListsActivity.this);
-                                initListView();
-                            }
-                        })
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show();
-            }
-            else {
-                Toast.makeText(this, getString(R.string.no_list_in_clipboard),
-                        Toast.LENGTH_LONG).show();
-            }
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.lists_activity_menu, menu);
-        return true;
     }
 }

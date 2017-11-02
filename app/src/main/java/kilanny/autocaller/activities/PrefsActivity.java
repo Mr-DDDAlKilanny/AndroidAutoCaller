@@ -1,7 +1,9 @@
-package kilanny.autocaller;
+package kilanny.autocaller.activities;
 
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
+
+import kilanny.autocaller.fragments.MyPreferenceFragment;
 
 /**
  * Created by ibraheem on 5/8/2017.

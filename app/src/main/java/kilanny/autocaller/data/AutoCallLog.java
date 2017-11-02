@@ -1,13 +1,10 @@
-package kilanny.autocaller;
+package kilanny.autocaller.data;
 
 import android.content.Context;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
@@ -16,10 +13,11 @@ import java.util.Date;
  * Created by Yasser on 06/10/2016.
  */
 public class AutoCallLog implements Serializable {
+    public static final long serialVersionUID =-5262431042354907616L;
 
     public static class AutoCallSession extends ArrayList<AutoCallItem>
             implements Serializable {
-        Date date;
+        public Date date;
     }
 
     public static abstract class AutoCallItem implements Serializable {
@@ -34,13 +32,13 @@ public class AutoCallLog implements Serializable {
         public static final int RESULT_ANSWERED_OR_REJECTED = 2;
 
 
-        String name, number;
-        Date date;
-        int result;
+        public String name, number;
+        public Date date;
+        public int result;
     }
     private static AutoCallLog instance;
 
-    final ArrayList<AutoCallSession> sessions = new ArrayList<>();
+    public final ArrayList<AutoCallSession> sessions = new ArrayList<>();
 
     public static AutoCallLog readOld(Context context) throws IOException, ClassNotFoundException {
         FileInputStream fis = context.openFileInput("autolog");

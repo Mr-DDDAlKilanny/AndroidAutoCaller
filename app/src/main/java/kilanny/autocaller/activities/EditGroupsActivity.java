@@ -1,4 +1,4 @@
-package kilanny.autocaller;
+package kilanny.autocaller.activities;
 
 import android.app.Dialog;
 import android.content.Context;
@@ -24,7 +24,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
+
+import kilanny.autocaller.data.ContactsList;
+import kilanny.autocaller.data.ContactsListGroup;
+import kilanny.autocaller.data.ContactsListItem;
+import kilanny.autocaller.adapters.ExpandableListAdapter_Groups;
+import kilanny.autocaller.data.ListOfCallingLists;
+import kilanny.autocaller.R;
 
 /**
  * Created by Yasser on 08/12/2016.
@@ -198,6 +204,7 @@ public class EditGroupsActivity extends AppCompatActivity {
             listDataChild.put(head, childs);
         }
     }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -214,6 +221,7 @@ public class EditGroupsActivity extends AppCompatActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_group_help) {
+            //TODO: should also display this dialog to the new user
             new AlertDialog.Builder(this)
                     .setTitle(R.string.app_name)
                     .setCancelable(true)
