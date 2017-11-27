@@ -45,8 +45,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import kilanny.autocaller.Application;
+import javax.inject.Inject;
+
+import kilanny.autocaller.App;
 import kilanny.autocaller.data.AutoCallLog;
+import kilanny.autocaller.di.ContextComponent;
+import kilanny.autocaller.di.ContextModule;
+import kilanny.autocaller.di.DaggerContextComponent;
 import kilanny.autocaller.intents.AutoCallPhoneStateListener;
 import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ContactsListGroup;
@@ -79,6 +84,7 @@ public class AutoCallService extends Service {
     private static final Class<?>[] mStopForegroundSignature = new Class[] {
             boolean.class};
 
+    @Inject ListOfCallingLists listOfCallingLists;
     private NotificationManager mNM;
     private Notification.Builder notificationBuilder;
     private Method mSetForeground;
@@ -104,6 +110,7 @@ public class AutoCallService extends Service {
     private ContactsList list;
     private Timer autoHangupTimer, phoneAppCrashNotificationTimer;
     static MediaPlayer mediaPlayer;
+    private ContextComponent contextComponent;
 
     /**
      * Handler of incoming messages from clients.
@@ -243,6 +250,11 @@ public class AutoCallService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        contextComponent = DaggerContextComponent.builder()
+                .appComponent(App.get(this).getComponent())
+                .contextModule(new ContextModule(this))
+                .build();
+        contextComponent.inject(this);
         _lastInstance = this;
         runOnUiThreadHandler = new Handler();
 
@@ -272,11 +284,10 @@ public class AutoCallService extends Service {
                         stopAutoCall(true);
                     else nextCall();
                 } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
-                    Application app = Application.getInstance(AutoCallService.this);
+                    App app = App.get(AutoCallService.this);
                     if (app.verifiedByOutgoingReceiver) {
                         runKillAutoCallTask();
                         app.lastOutgoingCallStartRinging = new Date();
-                        app.save(AutoCallService.this);
                     }
                 }
             }
@@ -292,7 +303,7 @@ public class AutoCallService extends Service {
                         stopAutoCall(true);
                     else nextCall();
                 } else if (state == TelephonyManager.CALL_STATE_OFFHOOK) {
-                    Application app = Application.getInstance(AutoCallService.this);
+                    ApplicationState app = ApplicationState.getInstance(AutoCallService.this);
                     if (app.verifiedByOutgoingReceiver) {
                         runKillAutoCallTask();
                         app.lastOutgoingCallStartRinging = new Date();
@@ -314,7 +325,7 @@ public class AutoCallService extends Service {
             return START_NOT_STICKY;
         }
         int callListId = intent.getIntExtra("callListId", -1);
-        list = ListOfCallingLists.getInstance(this).getById(callListId);
+        list = listOfCallingLists.getById(callListId);
         updateNotificationTextView(R.id.callListName, list.getName());
 
         canMakeCalls = new AtomicBoolean(true);
@@ -367,7 +378,7 @@ public class AutoCallService extends Service {
                 //Date callDayTime = new Date(Long.valueOf(cursor.getString(date)));
                 String callDuration = cursor.getString(duration);
                 long diffSeconds = 0;
-                Application app = Application.getInstance(this);
+                App app = App.get(this);
                 if (app.lastOutgoingCallStartRinging != null) {
                     diffSeconds = (new Date().getTime() -
                             app.lastOutgoingCallStartRinging.getTime()) / 1000;
@@ -522,7 +533,7 @@ public class AutoCallService extends Service {
         autoHangupTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                Application application = Application.getInstance(AutoCallService.this);
+                App application = App.get(AutoCallService.this);
                 ansOrRejectedNumbers.add(application.lastCallNumber);
                 Log.d("runKillAutoCallTask", "Call period timed out. Terminating...");
                 terminateActiveCall();
@@ -531,7 +542,7 @@ public class AutoCallService extends Service {
     }
 
     private void nextCall() {
-        if (Application.getInstance(this).verifiedByOutgoingReceiver) {
+        if (App.get(this).verifiedByOutgoingReceiver) {
             cancelCallHangupTimer();
             // call after 1 seconds, to enable the phone to update the call log
             // for the last call
@@ -542,7 +553,7 @@ public class AutoCallService extends Service {
                     try {
                         boolean ans = false;
                         boolean finished = false;
-                        if (!Application.getInstance(AutoCallService.this)
+                        if (!App.get(AutoCallService.this)
                                 .verifiedByOutgoingReceiver || listCurrentCallItemIdx == -1)
                             return; // stopped by user
                         ContactsListItem listItem = list.get(listCurrentCallItemIdx);
@@ -678,10 +689,9 @@ public class AutoCallService extends Service {
         cancelCallHangupTimer();
         //iHaveStartedTheOutgoingCall = false;
         listCurrentCallItemIdx = -1;
-        Application app = Application.getInstance(this);
+        App app = App.get(this);
         app.lastCallNumber = null;
         app.verifiedByOutgoingReceiver = false;
-        app.save(this);
         if (list != null) {
             list.save(this);
             list = null;
@@ -711,14 +721,13 @@ public class AutoCallService extends Service {
         }
 
         //iHaveStartedTheOutgoingCall = true;
-        Application app = Application.getInstance(this);
+        App app = App.get(this);
         app.lastOutgoingCallStartRinging = null;
         app.lastCallNumber = number;
         app.lastCallName = name;
         app.lastCallCurrentCount = currentCallCount;
         app.lastCallTotalCount = totalCallCount;
         app.verifiedByOutgoingReceiver = false;
-        app.save(this);
         String cur = TextUtils.getCurrentCalleeProgressMessage(this,
                 app.lastCallName, app.lastCallCurrentCount,
                 app.lastCallTotalCount, false);

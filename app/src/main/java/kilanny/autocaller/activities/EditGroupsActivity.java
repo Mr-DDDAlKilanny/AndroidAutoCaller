@@ -4,6 +4,8 @@ import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.PersistableBundle;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -25,17 +27,25 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
+import javax.inject.Inject;
+
+import kilanny.autocaller.App;
 import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ContactsListGroup;
 import kilanny.autocaller.data.ContactsListItem;
 import kilanny.autocaller.adapters.ExpandableListAdapter_Groups;
 import kilanny.autocaller.data.ListOfCallingLists;
 import kilanny.autocaller.R;
+import kilanny.autocaller.di.ContextComponent;
+import kilanny.autocaller.di.ContextModule;
+import kilanny.autocaller.di.DaggerContextComponent;
 
 /**
  * Created by Yasser on 08/12/2016.
  */
 public class EditGroupsActivity extends AppCompatActivity {
+
+    private ContextComponent contextComponent;
 
     public static class MyListItem {
         public ContactsListItem item;
@@ -46,7 +56,9 @@ public class EditGroupsActivity extends AppCompatActivity {
     ExpandableListView expListView;
     List<String> listDataHeader;
     HashMap<String, List<String>> listDataChild;
+    @Inject ListOfCallingLists listOfCallingLists;
     private ContactsList clist;
+    private int listId;
 
     private ArrayList<MyListItem> initAddDlgListView(ListView listView, ContactsList contactsList) {
         final ArrayList<MyListItem> items = new ArrayList<>();
@@ -109,72 +121,77 @@ public class EditGroupsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_groups);
-
         Intent intent = getIntent();
-        clist = ListOfCallingLists.getInstance(this).getById(intent.getIntExtra("list", -1));
-
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab_addgroup);
-        if (fab != null) {
-            fab.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (clist.size() == 0) {
-                        Toast.makeText(EditGroupsActivity.this, R.string.contacts_list_emptry,
-                                Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    final Dialog dlg = new Dialog(EditGroupsActivity.this);
-                    dlg.setContentView(R.layout.dlg_add_group);
-                    dlg.setTitle(R.string.add_contactgroup);
-                    ListView listView = (ListView) dlg.findViewById(R.id.listViewGroupContacts);
-                    final ArrayList<MyListItem> myListItems = initAddDlgListView(listView, clist);
-                    dlg.findViewById(R.id.btnAddGroupDlgOk).setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            EditText txt = (EditText) dlg.findViewById(R.id.txtGroupName);
-                            if (txt.getText().toString().trim().length() == 0) {
-                                Toast.makeText(dlg.getContext(), R.string.please_input_group_name,
-                                        Toast.LENGTH_LONG).show();
-                                return;
-                            }
-                            for (String s : listDataHeader) {
-                                if (s.equals(txt.getText().toString())) {
-                                    Toast.makeText(dlg.getContext(), R.string.group_name_already_exists,
-                                            Toast.LENGTH_LONG).show();
-                                    return;
-                                }
-                            }
-                            int numSelected = 0;
-                            for (MyListItem li : myListItems)
-                                if (li.isSelected)
-                                    ++numSelected;
-                            if (numSelected < 2) {
-                                Toast.makeText(dlg.getContext(), R.string.group_members_atleast_two,
-                                        Toast.LENGTH_LONG).show();
-                                return;
-                            }
-                            ContactsListGroup g = new ContactsListGroup();
-                            g.name = txt.getText().toString();
-                            listDataHeader.add(g.name);
-                            ArrayList<String> childs = new ArrayList<>();
-                            for (MyListItem li : myListItems) {
-                                if (li.isSelected) {
-                                    g.contacts.put(li.item.number, li.item.name);
-                                    childs.add(li.item.name + " (" + li.item.number + ")");
-                                }
-                            }
-                            listDataChild.put(g.name, childs);
-                            clist.getGroups().add(g);
-                            clist.save(EditGroupsActivity.this);
-                            listAdapter.notifyDataSetChanged();
-                            dlg.dismiss();
-                        }
-                    });
-                    dlg.show();
+        listId = intent.getIntExtra("list", -1);
+        contextComponent = DaggerContextComponent.builder()
+                .appComponent(App.get(this).getComponent())
+                .contextModule(new ContextModule(this))
+                .build();
+        contextComponent.inject(this);
+        findViewById(R.id.fab_addgroup).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (clist.size() == 0) {
+                    Toast.makeText(EditGroupsActivity.this, R.string.contacts_list_emptry,
+                            Toast.LENGTH_LONG).show();
+                    return;
                 }
-            });
-        }
+                final Dialog dlg = new Dialog(EditGroupsActivity.this);
+                dlg.setContentView(R.layout.dlg_add_group);
+                dlg.setTitle(R.string.add_contactgroup);
+                ListView listView = (ListView) dlg.findViewById(R.id.listViewGroupContacts);
+                final ArrayList<MyListItem> myListItems = initAddDlgListView(listView, clist);
+                dlg.findViewById(R.id.btnAddGroupDlgOk).setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        EditText txt = (EditText) dlg.findViewById(R.id.txtGroupName);
+                        if (txt.getText().toString().trim().length() == 0) {
+                            Toast.makeText(dlg.getContext(), R.string.please_input_group_name,
+                                    Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        for (String s : listDataHeader) {
+                            if (s.equals(txt.getText().toString())) {
+                                Toast.makeText(dlg.getContext(), R.string.group_name_already_exists,
+                                        Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                        }
+                        int numSelected = 0;
+                        for (MyListItem li : myListItems)
+                            if (li.isSelected)
+                                ++numSelected;
+                        if (numSelected < 2) {
+                            Toast.makeText(dlg.getContext(), R.string.group_members_atleast_two,
+                                    Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        ContactsListGroup g = new ContactsListGroup();
+                        g.name = txt.getText().toString();
+                        listDataHeader.add(g.name);
+                        ArrayList<String> childs = new ArrayList<>();
+                        for (MyListItem li : myListItems) {
+                            if (li.isSelected) {
+                                g.contacts.put(li.item.number, li.item.name);
+                                childs.add(li.item.name + " (" + li.item.number + ")");
+                            }
+                        }
+                        listDataChild.put(g.name, childs);
+                        clist.getGroups().add(g);
+                        clist.save(EditGroupsActivity.this);
+                        listAdapter.notifyDataSetChanged();
+                        dlg.dismiss();
+                    }
+                });
+                dlg.show();
+            }
+        });
+    }
 
+    @Override
+    public void onPostCreate(@Nullable Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        clist = listOfCallingLists.getById(listId);
         // get the listview
         expListView = (ExpandableListView) findViewById(R.id.expList_groups);
 
@@ -189,8 +206,8 @@ public class EditGroupsActivity extends AppCompatActivity {
     }
 
     /*
-     * Preparing the list data
-     */
+         * Preparing the list data
+         */
     private void prepareListData() {
         listDataHeader = new ArrayList<>();
         listDataChild = new HashMap<>();

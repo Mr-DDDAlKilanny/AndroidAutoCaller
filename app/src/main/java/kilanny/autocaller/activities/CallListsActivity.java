@@ -4,7 +4,9 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.PersistableBundle;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -18,16 +20,23 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import javax.inject.Inject;
+
+import kilanny.autocaller.App;
 import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ListOfCallingLists;
 import kilanny.autocaller.R;
-import kilanny.autocaller.serializers.BinarySerializer;
+import kilanny.autocaller.di.ContextComponent;
+import kilanny.autocaller.di.ContextModule;
+import kilanny.autocaller.di.DaggerContextComponent;
 import kilanny.autocaller.utils.ResultCallback;
 
 public class CallListsActivity extends AppCompatActivity {
 
     private ArrayAdapter<ContactsList> adapter;
-    private ListOfCallingLists list;
+    private ContextComponent contextComponent;
+    @Inject
+    ListOfCallingLists list;
 
     @Override
     protected void onStart() {
@@ -57,9 +66,13 @@ public class CallListsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_call_lists);
+        contextComponent = DaggerContextComponent.builder()
+                .appComponent(App.get(this).getComponent())
+                .contextModule(new ContextModule(this))
+                .build();
+        contextComponent.inject(this);
         Toolbar toolbar = (Toolbar) findViewById(R.id.listsToolbar);
         setSupportActionBar(toolbar);
-
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.addListFab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -95,10 +108,12 @@ public class CallListsActivity extends AppCompatActivity {
                 startActivity(new Intent(CallListsActivity.this, PrefsActivity.class));
             }
         });
+    }
 
-        //TODO: use a dependency injection container
-        ListOfCallingLists.setSerializer(new BinarySerializer());
-        list = ListOfCallingLists.getInstance(this);
+    @Override
+    public void onPostCreate(@Nullable Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+
         initListView();
     }
 

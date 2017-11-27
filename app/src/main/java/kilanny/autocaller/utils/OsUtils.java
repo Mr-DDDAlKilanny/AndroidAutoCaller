@@ -1,7 +1,12 @@
 package kilanny.autocaller.utils;
 
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
 
 /**
  * Created by ibraheem on 5/11/2017.
@@ -21,6 +26,15 @@ public final class OsUtils {
             }
         }
         return false;
+    }
+
+    public static void requestSystemAlertPermission(Activity context, int requestCode) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
+            return;
+        final String packageName = context.getPackageName();
+        final Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + packageName));
+        context.startActivityForResult(intent, requestCode);
     }
 
     private OsUtils() {}

@@ -6,7 +6,7 @@ import android.content.Intent;
 import android.util.Log;
 import android.widget.Toast;
 
-import kilanny.autocaller.Application;
+import kilanny.autocaller.App;
 import kilanny.autocaller.utils.TextUtils;
 
 /**
@@ -21,7 +21,7 @@ public class OutgoingCallReciever extends BroadcastReceiver {
             return; //potential bug
         Log.d("OutgoingCallReciever", intent.toString() + ", call to: " + phoneNumber);
         phoneNumber = TextUtils.fixPhoneNumber(phoneNumber);
-        Application app = Application.getInstance(context);
+        App app = App.get(context);
         if (app.lastCallNumber != null) {
             String other = TextUtils.fixPhoneNumber(app.lastCallNumber);
             boolean equals = other.equals(phoneNumber)
@@ -32,7 +32,6 @@ public class OutgoingCallReciever extends BroadcastReceiver {
                             phoneNumber, other, equals));
             if (equals) {
                 app.verifiedByOutgoingReceiver = true;
-                app.save(context);
                 try {
                     Toast.makeText(context,
                             TextUtils.getCurrentCalleeProgressMessage(context,

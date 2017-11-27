@@ -1,6 +1,5 @@
 package kilanny.autocaller.serializers;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,7 +12,7 @@ import kilanny.autocaller.data.ListOfCallingLists;
  * Created by user on 10/15/2017.
  */
 
-public class BinarySerializer implements ISerializer {
+public class BinarySerializer implements Serializer {
     @Override
     public byte[] serialize(ListOfCallingLists listOfCallingLists) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();

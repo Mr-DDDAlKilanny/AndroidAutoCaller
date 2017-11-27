@@ -14,25 +14,25 @@ import java.util.Date;
 /**
  * Created by Yasser on 06/11/2016.
  */
-public class Application implements Serializable {
+public class ApplicationState0 implements Serializable {
 
     private static final String FILE_NAME = "app";
-    private static Application instance;
+    private static ApplicationState0 instance;
 
     @NonNull
-    public static Application getInstance(Context context) {
+    public static ApplicationState0 getInstance(Context context) {
         if (instance == null) {
             try {
                 FileInputStream fis = context.openFileInput(FILE_NAME);
                 ObjectInputStream is = new ObjectInputStream(fis);
-                instance = (Application) is.readObject();
+                instance = (ApplicationState0) is.readObject();
                 is.close();
                 fis.close();
             } catch (IOException | ClassNotFoundException ex) {
                 ex.printStackTrace();
             }
             if (instance == null)
-                instance = new Application();
+                instance = new ApplicationState0();
         }
         return instance;
     }
@@ -55,6 +55,6 @@ public class Application implements Serializable {
         }
     }
 
-    private Application() {
+    private ApplicationState0() {
     }
 }

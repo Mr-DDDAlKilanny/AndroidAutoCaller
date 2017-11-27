@@ -2,6 +2,8 @@ package kilanny.autocaller.activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.os.PersistableBundle;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -17,11 +19,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
+import javax.inject.Inject;
+
+import kilanny.autocaller.App;
 import kilanny.autocaller.data.AutoCallLog;
 import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.adapters.ExpandableListAdapter;
 import kilanny.autocaller.data.ListOfCallingLists;
 import kilanny.autocaller.R;
+import kilanny.autocaller.di.ContextComponent;
+import kilanny.autocaller.di.ContextModule;
+import kilanny.autocaller.di.DaggerContextComponent;
 
 public class ShowLogActivity extends AppCompatActivity {
 
@@ -29,16 +37,30 @@ public class ShowLogActivity extends AppCompatActivity {
     ExpandableListView expListView;
     List<String> listDataHeader;
     HashMap<String, List<String>> listDataChild;
+    @Inject ListOfCallingLists listOfCallingLists;
+
     private ContactsList list;
+    private int listId;
+    private ContextComponent contextComponent;
 
     //http://www.androidhive.info/2013/07/android-expandable-list-view-tutorial/
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_show_log);
-
         Intent intent = getIntent();
-        list = ListOfCallingLists.getInstance(this).getById(intent.getIntExtra("list", -1));
+        listId = intent.getIntExtra("list", -1);
+        contextComponent = DaggerContextComponent.builder()
+                .appComponent(App.get(this).getComponent())
+                .contextModule(new ContextModule(this))
+                .build();
+        contextComponent.inject(this);
+    }
+
+    @Override
+    public void onPostCreate(@Nullable Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        list = listOfCallingLists.getById(listId);
 
         // get the listview
         expListView = (ExpandableListView) findViewById(R.id.expList);
@@ -53,8 +75,8 @@ public class ShowLogActivity extends AppCompatActivity {
     }
 
     /*
-     * Preparing the list data
-     */
+         * Preparing the list data
+         */
     private void prepareListData() {
         listDataHeader = new ArrayList<>();
         listDataChild = new HashMap<>();

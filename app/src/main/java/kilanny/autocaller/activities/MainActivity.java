@@ -13,8 +13,11 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
+import android.os.PersistableBundle;
 import android.os.RemoteException;
 import android.provider.ContactsContract;
+import android.provider.Settings;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -33,16 +36,23 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 
+import javax.inject.Inject;
+
+import kilanny.autocaller.App;
 import kilanny.autocaller.R;
 import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ContactsListItem;
 import kilanny.autocaller.data.ListOfCallingLists;
+import kilanny.autocaller.di.ContextComponent;
+import kilanny.autocaller.di.ContextModule;
+import kilanny.autocaller.di.DaggerContextComponent;
 import kilanny.autocaller.services.AutoCallService;
 import kilanny.autocaller.utils.OsUtils;
 import kilanny.autocaller.utils.TextUtils;
@@ -57,9 +67,11 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private boolean isServiceBound = false;
 
     private static Intent lastServiceIntent;
-
     private ArrayAdapter<ContactsListItem> adapter;
+    private int callListId;
     private ContactsList list;
+    @Inject ListOfCallingLists listOfCallingLists;
+    private ContextComponent contextComponent;
 
     private void rebind() {
         list.save(this);
@@ -99,9 +111,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                     != PackageManager.PERMISSION_GRANTED) {
                 neededPermission = 2;
             }
-            if (ActivityCompat.checkSelfPermission(this,
-                    Manifest.permission.SYSTEM_ALERT_WINDOW)
-                    != PackageManager.PERMISSION_GRANTED) {
+            if (!Settings.canDrawOverlays(this)) {
                 neededPermission = 3;
             }
         }
@@ -112,6 +122,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                     .setCancelable(true)
                     .setIcon(ContextCompat.getDrawable(this, android.R.drawable.ic_dialog_alert))
                     .show();
+            checkPermissions();
             return;
         }
         //already running?
@@ -151,15 +162,12 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         Intent intent = getIntent();
-        final int callListId = intent.getIntExtra("list", -1);
-        list = ListOfCallingLists.getInstance(this).getById(callListId);
-        setTitle(list.getName());
-        Collections.sort(list, new Comparator<ContactsListItem>() {
-            @Override
-            public int compare(ContactsListItem lhs, ContactsListItem rhs) {
-                return Integer.valueOf(lhs.index).compareTo(rhs.index);
-            }
-        });
+        callListId = intent.getIntExtra("list", -1);
+        contextComponent = DaggerContextComponent.builder()
+                .appComponent(App.get(this).getComponent())
+                .contextModule(new ContextModule(this))
+                .build();
+        contextComponent.inject(this);
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         if (fab != null) {
             fab.setOnClickListener(new View.OnClickListener() {
@@ -172,6 +180,23 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         //startService(new Intent(this, CallDetectService.class));
 
+    }
+
+    @Override
+    public void onPostCreate(@Nullable Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        list = listOfCallingLists.getById(callListId);
+        setTitle(list.getName());
+        Collections.sort(list, new Comparator<ContactsListItem>() {
+            @Override
+            public int compare(ContactsListItem lhs, ContactsListItem rhs) {
+                return Integer.valueOf(lhs.index).compareTo(rhs.index);
+            }
+        });
+        initListView();
+    }
+
+    private void initListView() {
         adapter = new ArrayAdapter<ContactsListItem>(this, R.layout.contact_list_item, list) {
             @Override
             public View getView(final int position, View convertView, ViewGroup parent) {
@@ -247,16 +272,14 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         return true;
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
+    private void checkPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            List<String> neededPermissions = Arrays.asList(
+            ArrayList<String> neededPermissions = new ArrayList<>(Arrays.asList(
                     Manifest.permission.CALL_PHONE,
                     Manifest.permission.READ_CONTACTS,
-                    Manifest.permission.READ_CALL_LOG,
-                    Manifest.permission.SYSTEM_ALERT_WINDOW
-            );
+                    Manifest.permission.READ_CALL_LOG
+                    //,Manifest.permission.SYSTEM_ALERT_WINDOW
+            ));
             for (int i = neededPermissions.size() - 1; i >= 0; --i) {
                 if (ActivityCompat.checkSelfPermission(this, neededPermissions.get(i))
                         == PackageManager.PERMISSION_GRANTED) {
@@ -266,8 +289,16 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             if (!neededPermissions.isEmpty()) {
                 requestPermissions(neededPermissions.toArray(new String[0]),
                         PERMISSION_RQUEST);
+            } else if (!Settings.canDrawOverlays(this)) {
+                OsUtils.requestSystemAlertPermission(this, PERMISSION_RQUEST);
             }
         }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        checkPermissions();
         if (OsUtils.isServiceRunning(this, AutoCallService.class)) {
             if (lastServiceIntent != null)
                 bindService(lastServiceIntent, this, 0);
@@ -314,11 +345,11 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             return true;
         } else if (id == R.id.action_show_log) {
             Intent intent = new Intent(this, ShowLogActivity.class);
-            intent.putExtra("list", ListOfCallingLists.getInstance(this).idOf(list));
+            intent.putExtra("list", listOfCallingLists.idOf(list));
             startActivity(intent);
         } else if (id == R.id.action_edit_groups) {
             Intent intent = new Intent(this, EditGroupsActivity.class);
-            intent.putExtra("list", ListOfCallingLists.getInstance(this).idOf(list));
+            intent.putExtra("list", listOfCallingLists.idOf(list));
             startActivity(intent);
         } else if (id == R.id.action_info) {
             new AlertDialog.Builder(MainActivity.this)

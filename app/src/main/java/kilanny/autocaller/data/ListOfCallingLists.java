@@ -10,61 +10,49 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStreamWriter;
 import java.io.Serializable;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import kilanny.autocaller.serializers.ISerializer;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
+import kilanny.autocaller.di.ApplicationContext;
+import kilanny.autocaller.serializers.Serializer;
 
 /**
  * Created by Yasser on 11/18/2016.
  */
 
+@Singleton
 public class ListOfCallingLists implements Serializable {
 
-    private static ListOfCallingLists instance;
-    private static ISerializer serializer;
+    private transient final Serializer serializer;
     private static final String LIST_FILE_NAME = "ListOfCallingLists.dat";
     static final long serialVersionUID =-7719765106986038527L;
-    private static final ExecutorService executorService
+    private transient final ExecutorService executorService
             = Executors.newSingleThreadExecutor();
 
     private /*transient*/ SerializableInFile<Integer> idCounter;
     private ArrayList<SerializablePair<Integer, ContactsList>> list;
 
-    public static ListOfCallingLists getInstance(Context context) {
-        if (instance == null) {
-            try {
-                FileInputStream fis = context.openFileInput(LIST_FILE_NAME);
-                instance = serializer.deserialize(fis);
-                fis.close();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-            if (instance == null) {
-                instance = new ListOfCallingLists();
-            }
+    @Inject
+    public ListOfCallingLists(@ApplicationContext Context context,
+                              Serializer serializer) {
+        this.serializer = serializer;
+        try {
+            FileInputStream fis = context.openFileInput(LIST_FILE_NAME);
+            ListOfCallingLists instance = serializer.deserialize(fis);
+            list = instance.list;
+            idCounter = instance.idCounter;
+            fis.close();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            idCounter = new SerializableInFile<>(context, "ListOfCallingListsIdCounter.int", 0);
+            list = new ArrayList<>();
         }
-        if (instance.idCounter == null)
-            instance.idCounter = new SerializableInFile<>(context,
-                    "ListOfCallingListsIdCounter.int", 0);
-        return instance;
-    }
-
-    private ListOfCallingLists() {
-        list = new ArrayList<>();
-    }
-
-    public static ISerializer getSerializer() {
-        return serializer;
-    }
-
-    public static void setSerializer(ISerializer serializer) {
-        ListOfCallingLists.serializer = serializer;
     }
 
     @Override
@@ -90,7 +78,7 @@ public class ListOfCallingLists implements Serializable {
         }
     }
 
-    private static void scheduleSave(final ListOfCallingLists list, final Context context) {
+    private void scheduleSave(final ListOfCallingLists list, final Context context) {
         executorService.submit(new Runnable() {
             @Override
             public void run() {
