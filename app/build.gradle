@@ -2,14 +2,15 @@ apply plugin: 'com.android.application'
 
 android {
     //compileOptions.incremental = false
-    compileSdkVersion 26
-    buildToolsVersion '26.0.2'
+    compileSdkVersion 27
+    buildToolsVersion '27.0.3'
     defaultConfig {
         applicationId "kilanny.autocaller"
         minSdkVersion 14
-        targetSdkVersion 26
+        targetSdkVersion 27
         versionCode 12
         versionName '2.511'
+        vectorDrawables.useSupportLibrary true
     }
     buildTypes {
         release {
@@ -19,17 +20,27 @@ android {
     }
     productFlavors {
     }
+    dataBinding {
+        enabled = true
+    }
 }
 
 dependencies {
-    compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.android.support:appcompat-v7:26.1.0'
-    compile 'com.android.support:design:26.1.0'
-    compile 'com.android.support:support-v4:26.1.0'
-    compile 'com.google.android.gms:play-services-maps:10.2.4'
-    testCompile 'junit:junit:4.12'
-    compile 'com.google.dagger:dagger:2.12'
+    implementation 'com.android.support.constraint:constraint-layout:1.1.0'
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    androidTestImplementation('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+    testImplementation 'junit:junit:4.12'
+    implementation 'com.android.support:appcompat-v7:27.1.1'
+    implementation 'com.android.support:design:27.1.1'
+    implementation 'com.android.support:support-v4:27.1.1'
+    implementation 'com.google.android.gms:play-services-maps:11.0.0'
+    implementation 'com.google.android.gms:play-services-places:11.0.0'
+    implementation 'com.google.android.gms:play-services-location:11.0.0'
+    testImplementation 'junit:junit:4.12'
+    implementation 'com.google.dagger:dagger:2.12'
     annotationProcessor 'com.google.dagger:dagger-compiler:2.12'
-    provided 'javax.annotation:jsr250-api:1.0'
-    compile 'javax.inject:javax.inject:1'
+    compileOnly 'javax.annotation:jsr250-api:1.0'
+    implementation 'javax.inject:javax.inject:1'
 }

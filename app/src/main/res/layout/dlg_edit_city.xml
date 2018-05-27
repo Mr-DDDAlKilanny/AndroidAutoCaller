@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    tools:context="kilanny.autocaller.activities.EditCityActivity"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <LinearLayout
+        android:id="@+id/prayerCalcMethodLayout"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <android.support.v7.widget.AppCompatTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/prayer_calc_method" />
+        <android.support.v7.widget.AppCompatSpinner
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/spinPrayerCalcMethod" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/asrPrayerCalcMethodLayout"
+        app:layout_constraintTop_toBottomOf="@id/prayerCalcMethodLayout"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <android.support.v7.widget.AppCompatTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/prayer_asr_calc_method" />
+        <android.support.v7.widget.AppCompatSpinner
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/spinAsrPrayerCalcMethod" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/countryLayout"
+        app:layout_constraintTop_toBottomOf="@id/asrPrayerCalcMethodLayout"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <android.support.v7.widget.AppCompatTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/country" />
+        <android.support.v7.widget.AppCompatAutoCompleteTextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:completionHint="Saved Countries"
+            android:completionThreshold="1"
+            android:id="@+id/txtCountryName" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/cityLayout"
+        app:layout_constraintTop_toBottomOf="@id/countryLayout"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <android.support.v7.widget.AppCompatTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/city" />
+        <android.support.v7.widget.AppCompatEditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/txtCityName" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/timezoneLayout"
+        app:layout_constraintTop_toBottomOf="@id/cityLayout"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <android.support.v7.widget.AppCompatTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/timezone" />
+        <android.support.v7.widget.AppCompatEditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="numberSigned"
+            android:id="@+id/txtTimezone" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/minMinuteAfterFajrLayout"
+        app:layout_constraintTop_toBottomOf="@id/timezoneLayout"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <android.support.v7.widget.AppCompatTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/minMinuteAfterFajr" />
+        <android.support.v7.widget.AppCompatEditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:id="@+id/txtMinMinuteAfterFajr" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/minMinutesBeforeSunriseLayout"
+        app:layout_constraintTop_toBottomOf="@id/minMinuteAfterFajrLayout"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <android.support.v7.widget.AppCompatTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/minMinutesBeforeSunrise" />
+        <android.support.v7.widget.AppCompatEditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:id="@+id/txtMinMinutesBeforeSunrise" />
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/locationLayout"
+        app:layout_constraintTop_toBottomOf="@id/minMinutesBeforeSunriseLayout"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <android.support.v7.widget.AppCompatTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/location" />
+        <android.support.v7.widget.AppCompatButton
+            android:id="@+id/btnPickLocation"
+            android:text="@string/pick_location"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+        <android.support.v7.widget.AppCompatTextView
+            android:id="@+id/selectedPlace"
+            android:text="@string/not_selected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+    <android.support.v7.widget.AppCompatButton
+        app:layout_constraintTop_toBottomOf="@id/locationLayout"
+        android:id="@+id/btnEditCityOk"
+        android:text="@string/save"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+</android.support.constraint.ConstraintLayout>

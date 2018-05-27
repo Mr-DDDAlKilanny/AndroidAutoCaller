@@ -15,4 +15,19 @@
         <item>3</item>
         <item>4</item>
     </string-array>
+    <string-array name="ring_priority_names">
+        <item>اختيار آلي للأولوية</item>
+        <item>للأشخاص الذين طلع عندهم الفجر</item>
+        <item>للأشخاص الذين اقترب وقت الشروق عندهم</item>
+    </string-array>
+    <string name="ring_priority_array_default_value">0</string>
+    <string-array name="ring_priority_values">
+        <item>@string/ring_priority_array_default_value</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="city_item_options">
+        <item>تعديل</item>
+        <item>حذف</item>
+    </string-array>
 </resources>

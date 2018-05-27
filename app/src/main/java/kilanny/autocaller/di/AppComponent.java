@@ -6,6 +6,7 @@ import javax.inject.Singleton;
 
 import dagger.Component;
 import kilanny.autocaller.App;
+import kilanny.autocaller.data.CityList;
 import kilanny.autocaller.data.ListOfCallingLists;
 import kilanny.autocaller.serializers.Serializer;
 
@@ -21,6 +22,8 @@ public interface AppComponent {
     Serializer getSerializer();
 
     ListOfCallingLists getListOfCallingLists();
+
+    CityList getCityList();
 
     @ApplicationContext
     Context getContext();

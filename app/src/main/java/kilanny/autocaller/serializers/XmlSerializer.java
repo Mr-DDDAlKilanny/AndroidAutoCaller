@@ -1,7 +1,9 @@
 package kilanny.autocaller.serializers;
 
+import java.io.IOException;
 import java.io.InputStream;
 
+import kilanny.autocaller.data.CityList;
 import kilanny.autocaller.data.ListOfCallingLists;
 
 /**
@@ -12,11 +14,21 @@ public final class XmlSerializer implements Serializer {
 
     @Override
     public byte[] serialize(ListOfCallingLists listOfCallingLists) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public ListOfCallingLists deserialize(InputStream stream) {
-        return null;
+    public ListOfCallingLists deserializeListOfCallingLists(InputStream stream) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public byte[] serialize(CityList cityList) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CityList deserializeCityList(InputStream stream) throws IOException {
+        throw new UnsupportedOperationException();
     }
 }

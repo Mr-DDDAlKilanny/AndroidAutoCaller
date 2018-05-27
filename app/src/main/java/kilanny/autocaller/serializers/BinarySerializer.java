@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import kilanny.autocaller.data.CityList;
 import kilanny.autocaller.data.ListOfCallingLists;
 
 /**
@@ -15,9 +16,29 @@ import kilanny.autocaller.data.ListOfCallingLists;
 public class BinarySerializer implements Serializer {
     @Override
     public byte[] serialize(ListOfCallingLists listOfCallingLists) throws IOException {
+        return serialize((Object) listOfCallingLists);
+    }
+
+    @Override
+    public ListOfCallingLists deserializeListOfCallingLists(InputStream stream)
+            throws IOException {
+        return (ListOfCallingLists) deserialize(stream);
+    }
+
+    @Override
+    public byte[] serialize(CityList cityList) throws IOException {
+        return serialize((Object) cityList);
+    }
+
+    @Override
+    public CityList deserializeCityList(InputStream stream) throws IOException {
+        return (CityList) deserialize(stream);
+    }
+
+    private byte[] serialize(Object o) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         ObjectOutputStream os = new ObjectOutputStream(byteArrayOutputStream);
-        os.writeObject(listOfCallingLists);
+        os.writeObject(o);
         os.close();
         byteArrayOutputStream.flush();
         byte[] result = byteArrayOutputStream.toByteArray();
@@ -25,13 +46,11 @@ public class BinarySerializer implements Serializer {
         return result;
     }
 
-    @Override
-    public ListOfCallingLists deserialize(InputStream stream)
-            throws IOException {
+    private Object deserialize(InputStream stream) throws IOException {
         ObjectInputStream is = new ObjectInputStream(stream);
-        ListOfCallingLists instance = null;
+        Object instance = null;
         try {
-            instance = (ListOfCallingLists) is.readObject();
+            instance = is.readObject();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }

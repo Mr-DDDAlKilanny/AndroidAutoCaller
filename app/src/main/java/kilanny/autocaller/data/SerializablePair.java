@@ -8,6 +8,8 @@ import java.io.Serializable;
 
 public class SerializablePair<T, F> implements Serializable {
 
+    static final long serialVersionUID=3048338059443687735L;
+
     private T first;
     private F second;
 

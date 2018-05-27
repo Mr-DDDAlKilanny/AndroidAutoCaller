@@ -15,4 +15,19 @@
         <item>3</item>
         <item>4</item>
     </string-array>
+    <string-array name="ring_priority_names">
+        <item>Automatic priority for persons</item>
+        <item>For persons which Fajr has appeared on them</item>
+        <item>For person which Sunrise has been closed on them</item>
+    </string-array>
+    <string name="ring_priority_array_default_value">0</string>
+    <string-array name="ring_priority_values">
+        <item>@string/ring_priority_array_default_value</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="city_item_options">
+        <item>Edit</item>
+        <item>Delete</item>
+    </string-array>
 </resources>

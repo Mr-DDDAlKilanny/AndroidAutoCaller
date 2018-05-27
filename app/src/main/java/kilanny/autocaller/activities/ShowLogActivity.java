@@ -100,6 +100,15 @@ public class ShowLogActivity extends AppCompatActivity {
                                     : call.result == AutoCallLog.AutoCall.RESULT_ANSWERED_OR_REJECTED ?
                                     getString(R.string.call_status_answered_or_rejected)
                                     : getString(R.string.call_status_unknown)));
+                } else if (item instanceof AutoCallLog.AutoCallIgnored) {
+                    AutoCallLog.AutoCallIgnored call = (AutoCallLog.AutoCallIgnored) item;
+                    childs.add(String.format("%s (%s): %s, %s", call.name, call.number,
+                            timeInstance.format(call.date),
+                            call.result == AutoCallLog.AutoCallIgnored.RESULT_IGNORED_BEFORE_FAJR ?
+                                    getString(R.string.ignored_before_fajr)
+                                    : call.result == AutoCallLog.AutoCallIgnored.RESULT_IGNORED_AFTER_SUNRISE ?
+                                    getString(R.string.ignored_after_sunrise)
+                                    : getString(R.string.call_status_unknown)));
                 } else
                     childs.add(getString(R.string.auto_call_restart));
             }

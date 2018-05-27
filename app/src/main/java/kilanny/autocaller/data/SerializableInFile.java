@@ -15,6 +15,8 @@ import java.io.Serializable;
  */
 public class SerializableInFile<T extends Serializable> implements Serializable {
 
+    static final long serialVersionUID=6654039818510573010L;
+
     private T data;
     private final String fileName;
     private boolean saved;

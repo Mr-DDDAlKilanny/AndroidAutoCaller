@@ -3,16 +3,21 @@ package kilanny.autocaller.activities;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.databinding.DataBindingUtil;
 import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.view.ViewCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
+import android.view.animation.OvershootInterpolator;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
@@ -23,9 +28,11 @@ import android.widget.Toast;
 import javax.inject.Inject;
 
 import kilanny.autocaller.App;
+import kilanny.autocaller.data.AutoCallSession;
 import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ListOfCallingLists;
 import kilanny.autocaller.R;
+import kilanny.autocaller.databinding.ActivityCallListsBinding;
 import kilanny.autocaller.di.ContextComponent;
 import kilanny.autocaller.di.ContextModule;
 import kilanny.autocaller.di.DaggerContextComponent;
@@ -33,6 +40,10 @@ import kilanny.autocaller.utils.ResultCallback;
 
 public class CallListsActivity extends AppCompatActivity {
 
+    private ActivityCallListsBinding binding;
+    private Animation fabOpenAnimation;
+    private Animation fabCloseAnimation;
+    private boolean isFabMenuOpen = false;
     private ArrayAdapter<ContactsList> adapter;
     private ContextComponent contextComponent;
     @Inject
@@ -42,6 +53,26 @@ public class CallListsActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         //TODO: display a dialog if the list is empty to help user
+        if (AutoCallSession.getLastSession(this) != null) {
+            new android.support.v7.app.AlertDialog.Builder(this)
+                    .setTitle(R.string.dlg_sessionFound_title)
+                    .setMessage(R.string.dlg_sessionFound_msg)
+                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            Intent i = new Intent(CallListsActivity.this, MainActivity.class);
+                            i.putExtra("continueLastSession", true);
+                            startActivity(i);
+                        }
+                    })
+                    .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            AutoCallSession.clear(CallListsActivity.this);
+                        }
+                    })
+                    .show();
+        }
     }
 
     private void inputString(String title, String initValue,
@@ -66,13 +97,15 @@ public class CallListsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_call_lists);
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_call_lists);
+        binding.setFabHandler(new CallListsFabHandler());
+
+        getAnimations();
         contextComponent = DaggerContextComponent.builder()
                 .appComponent(App.get(this).getComponent())
                 .contextModule(new ContextModule(this))
                 .build();
         contextComponent.inject(this);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.listsToolbar);
-        setSupportActionBar(toolbar);
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.addListFab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -99,13 +132,6 @@ public class CallListsActivity extends AppCompatActivity {
                                 .show();
                     }
                 });
-            }
-        });
-
-        findViewById(R.id.fabPrefs).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(new Intent(CallListsActivity.this, PrefsActivity.class));
             }
         });
     }
@@ -155,7 +181,7 @@ public class CallListsActivity extends AppCompatActivity {
                 b.setCancelable(true);
                 b.setTitle(item.getName());
                 final String[] options = new String[] {
-                        getString(R.string.set_sched_for_list),
+                        //getString(R.string.set_sched_for_list),
                         getString(R.string.edit_list_name),
                         getString(R.string.delete_list)
                 };
@@ -163,7 +189,7 @@ public class CallListsActivity extends AppCompatActivity {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         dialog.dismiss();
-                        switch (which) {
+                        switch (which + 1) {
                             case 0:
                                 break;
                             case 1:
@@ -207,5 +233,64 @@ public class CallListsActivity extends AppCompatActivity {
                 return true;
             }
         });
+    }
+
+    private void getAnimations() {
+
+        fabOpenAnimation = AnimationUtils.loadAnimation(this, R.anim.fab_open);
+
+        fabCloseAnimation = AnimationUtils.loadAnimation(this, R.anim.fab_close);
+
+    }
+
+    private void expandFabMenu() {
+        ViewCompat.animate(binding.baseFloatingActionButton)
+                .rotation(45.0F)
+                .withLayer()
+                .setDuration(300)
+                .setInterpolator(new OvershootInterpolator(10.0F))
+                .start();
+        binding.settingsLayout.startAnimation(fabOpenAnimation);
+        binding.citiesLayout.startAnimation(fabOpenAnimation);
+        binding.citiesFab.setClickable(true);
+        binding.fabPrefs.setClickable(true);
+        isFabMenuOpen = true;
+    }
+
+    private void collapseFabMenu() {
+        ViewCompat.animate(binding.baseFloatingActionButton).rotation(0.0F).withLayer().setDuration(300).setInterpolator(new OvershootInterpolator(10.0F)).start();
+        binding.settingsLayout.startAnimation(fabCloseAnimation);
+        binding.citiesLayout.startAnimation(fabCloseAnimation);
+        binding.citiesFab.setClickable(false);
+        binding.fabPrefs.setClickable(false);
+        isFabMenuOpen = false;
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (isFabMenuOpen)
+            collapseFabMenu();
+        else
+            super.onBackPressed();
+    }
+
+    public class CallListsFabHandler {
+
+        public void onBaseFabClick(View view) {
+            if (isFabMenuOpen)
+                collapseFabMenu();
+            else
+                expandFabMenu();
+        }
+
+        public void onSettingsFabClick(View view) {
+            //Snackbar.make(binding.coordinatorLayout, "Create FAB tapped", Snackbar.LENGTH_SHORT).show();
+            startActivity(new Intent(CallListsActivity.this, PrefsActivity.class));
+        }
+
+        public void onCitiesFabClick(View view) {
+            //Snackbar.make(binding.coordinatorLayout, "Share FAB tapped", Snackbar.LENGTH_SHORT).show();
+            startActivity(new Intent(CallListsActivity.this, CitiesActivity.class));
+        }
     }
 }

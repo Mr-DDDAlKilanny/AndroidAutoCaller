@@ -29,13 +29,22 @@
         android:layout_toRightOf="@id/btnMoveDown"
         android:layout_toEndOf="@id/btnMoveDown" />
     <ImageButton
-        android:id="@+id/delete_item"
-        android:layout_width="40dp"
+        android:id="@+id/btnSelectCity"
+        android:layout_width="30dp"
         android:layout_height="fill_parent"
         android:layout_alignParentBottom="true"
         android:layout_alignParentTop="true"
         android:layout_toRightOf="@id/btnCallCount"
         android:layout_toEndOf="@id/btnCallCount"
+        android:src="@android:drawable/radiobutton_on_background" />
+    <ImageButton
+        android:id="@+id/delete_item"
+        android:layout_width="40dp"
+        android:layout_height="fill_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentTop="true"
+        android:layout_toRightOf="@id/btnSelectCity"
+        android:layout_toEndOf="@id/btnSelectCity"
         android:src="@android:drawable/ic_delete" />
     <LinearLayout
         android:layout_width="match_parent"
@@ -49,7 +58,7 @@
         android:orientation="vertical"
         android:layout_toEndOf="@id/delete_item">
         <TextView
-            android:text="شقيقتي. سارة"
+            android:text="فلان بن فلان الفلاني"
             android:layout_weight="1"
             android:textStyle="bold"
             android:layout_gravity="end"
@@ -59,7 +68,7 @@
             android:gravity="start"
             android:textSize="16sp" />
         <TextView
-            android:text="+966507337605"
+            android:text="+966512345678"
             android:id="@+id/textViewContactNumber"
             android:layout_weight="1"
             android:layout_gravity="start"

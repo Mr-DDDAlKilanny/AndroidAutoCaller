@@ -14,6 +14,8 @@ import java.util.ArrayList;
 public class ContactsListGroupList extends ArrayList<ContactsListGroup>
     implements Serializable {
 
+    static final long serialVersionUID=-4297779932874148360L;
+
     public static ContactsListGroupList readOld(Context context) throws IOException, ClassNotFoundException {
         FileInputStream fis = context.openFileInput("contact_groups.dat");
         ObjectInputStream is = new ObjectInputStream(fis);

@@ -20,6 +20,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import kilanny.autocaller.di.ApplicationContext;
+import kilanny.autocaller.serializers.BinarySerializer;
 import kilanny.autocaller.serializers.Serializer;
 
 /**
@@ -29,11 +30,10 @@ import kilanny.autocaller.serializers.Serializer;
 @Singleton
 public class ListOfCallingLists implements Serializable {
 
-    private transient final Serializer serializer;
+    private transient Serializer serializer;
     private static final String LIST_FILE_NAME = "ListOfCallingLists.dat";
     static final long serialVersionUID =-7719765106986038527L;
-    private transient final ExecutorService executorService
-            = Executors.newSingleThreadExecutor();
+    private transient ExecutorService executorService;
 
     private /*transient*/ SerializableInFile<Integer> idCounter;
     private ArrayList<SerializablePair<Integer, ContactsList>> list;
@@ -44,7 +44,7 @@ public class ListOfCallingLists implements Serializable {
         this.serializer = serializer;
         try {
             FileInputStream fis = context.openFileInput(LIST_FILE_NAME);
-            ListOfCallingLists instance = serializer.deserialize(fis);
+            ListOfCallingLists instance = serializer.deserializeListOfCallingLists(fis);
             list = instance.list;
             idCounter = instance.idCounter;
             fis.close();
@@ -79,12 +79,16 @@ public class ListOfCallingLists implements Serializable {
     }
 
     private void scheduleSave(final ListOfCallingLists list, final Context context) {
+        if (executorService == null)
+            executorService = Executors.newSingleThreadExecutor();
         executorService.submit(new Runnable() {
             @Override
             public void run() {
                 try {
                     FileOutputStream fos = context.openFileOutput("tmp" + LIST_FILE_NAME,
                             Context.MODE_PRIVATE);
+                    if (serializer == null)
+                        serializer = new BinarySerializer(); //TODO: fix this bug
                     byte[] bytes = serializer.serialize(list);
                     fos.write(bytes, 0, bytes.length);
                     fos.close();

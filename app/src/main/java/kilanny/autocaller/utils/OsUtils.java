@@ -1,12 +1,21 @@
 package kilanny.autocaller.utils;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
 import android.provider.Settings;
+import android.support.v4.app.ActivityCompat;
+
+import java.util.Date;
+
+import kilanny.autocaller.App;
+import kilanny.autocaller.R;
 
 /**
  * Created by ibraheem on 5/11/2017.
@@ -35,6 +44,20 @@ public final class OsUtils {
         final Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:" + packageName));
         context.startActivityForResult(intent, requestCode);
+    }
+
+    public static void callNumber(Context context, String number) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                throw new IllegalStateException("Call Permission must be granted before calling this method");
+            }
+        }
+
+        Intent callIntent = new Intent(Intent.ACTION_CALL);
+        callIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        callIntent.setData(Uri.parse("tel:" + number));
+        context.startActivity(callIntent);
     }
 
     private OsUtils() {}

@@ -13,7 +13,6 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
-import android.os.PersistableBundle;
 import android.os.RemoteException;
 import android.provider.ContactsContract;
 import android.provider.Settings;
@@ -41,12 +40,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.List;
 
 import javax.inject.Inject;
 
 import kilanny.autocaller.App;
 import kilanny.autocaller.R;
+import kilanny.autocaller.data.AutoCallSession;
+import kilanny.autocaller.data.City;
+import kilanny.autocaller.data.CityList;
 import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ContactsListItem;
 import kilanny.autocaller.data.ListOfCallingLists;
@@ -71,7 +72,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private int callListId;
     private ContactsList list;
     @Inject ListOfCallingLists listOfCallingLists;
-    private ContextComponent contextComponent;
+    @Inject CityList cityList;
+    private boolean continueLastSession = false;
 
     private void rebind() {
         list.save(this);
@@ -89,7 +91,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             unbindService(this);
             isServiceBound = false;
         }
-        AutoCallService.stopFinishRingtune();
+        AutoCallService.stopFinishRingtone();
     }
 
     @Override
@@ -98,7 +100,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         myFinish();
     }
 
-    private void fabClick(View view, int callListId) {
+    private void fabClick(View view) {
         int neededPermission = 0;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (ActivityCompat.checkSelfPermission(this,
@@ -147,7 +149,11 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         }
         final Intent serviceIntent = new Intent(
                 MainActivity.this.getApplicationContext(), AutoCallService.class);
-        serviceIntent.putExtra("callListId", callListId);
+        if (continueLastSession) {
+            serviceIntent.putExtra("continueLastSession", true);
+            continueLastSession = false;
+        } else
+            serviceIntent.putExtra("callListId", callListId);
         startService(serviceIntent);
         bindService(serviceIntent, MainActivity.this, 0);
         lastServiceIntent = serviceIntent;
@@ -162,8 +168,12 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         Intent intent = getIntent();
-        callListId = intent.getIntExtra("list", -1);
-        contextComponent = DaggerContextComponent.builder()
+        if (intent.getBooleanExtra("continueLastSession", false)) {
+            continueLastSession = true;
+            callListId = AutoCallSession.getLastSession(this).contactsListId;
+        } else
+            callListId = intent.getIntExtra("list", -1);
+        ContextComponent contextComponent = DaggerContextComponent.builder()
                 .appComponent(App.get(this).getComponent())
                 .contextModule(new ContextModule(this))
                 .build();
@@ -173,7 +183,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             fab.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    fabClick(view, callListId);
+                    fabClick(view);
                 }
             });
         }
@@ -194,6 +204,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             }
         });
         initListView();
+        if (continueLastSession)
+            fabClick(findViewById(R.id.fab));
     }
 
     private void initListView() {
@@ -209,7 +221,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 final ContactsListItem listItem = adapter.getItem(position);
                 TextView contactName = (TextView) rowView.findViewById(R.id.textViewContactName);
                 contactName.setText(listItem.name);
-                TextView contactNumber = (TextView) rowView.findViewById(R.id.textViewContactNumber);
+                final TextView contactNumber = (TextView) rowView.findViewById(R.id.textViewContactNumber);
                 contactNumber.setText(listItem.number);
                 final Button clickCount = (Button) rowView.findViewById(R.id.btnCallCount);
                 clickCount.setText(listItem.callCount + "");
@@ -226,12 +238,22 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 rowView.findViewById(R.id.delete_item).setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        adapter.remove(listItem);
-                        int idx = list.indexOf(listItem);
-                        for (++idx; idx < list.size(); ++idx)
-                            list.get(idx).index--;
-                        list.remove(listItem);
-                        rebind();
+                        new AlertDialog.Builder(MainActivity.this)
+                        .setTitle(R.string.delete_item)
+                        .setMessage(R.string.delete_item_message)
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                adapter.remove(listItem);
+                                int idx = list.indexOf(listItem);
+                                for (++idx; idx < list.size(); ++idx)
+                                    list.get(idx).index--;
+                                list.remove(listItem);
+                                rebind();
+                            }
+                        })
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show();
                     }
                 });
                 rowView.findViewById(R.id.btnMoveUp).setOnClickListener(new View.OnClickListener() {
@@ -258,11 +280,55 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         }
                     }
                 });
+                rowView.findViewById(R.id.btnSelectCity).setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        showSelectCityDialog(listItem);
+                    }
+                });
                 return rowView;
             }
         };
         ListView listView = (ListView) findViewById(R.id.listViewNumbers);
         listView.setAdapter(adapter);
+    }
+
+    private void showSelectCityDialog(final ContactsListItem listItem) {
+        String[] cities = new String[cityList.size()];
+        int selectedItem = -1;
+        for (int i = 0; i < cityList.size(); ++i) {
+            City city = cityList.get(i);
+            cities[i] = city.country + " - " + city.name;
+            if (listItem.cityId != null && listItem.cityId == city.id)
+                selectedItem = i;
+        }
+
+        new AlertDialog.Builder(MainActivity.this)
+                .setTitle(getString(R.string.dlg_select_city_title) + " - " + listItem.number)
+                .setSingleChoiceItems(cities, selectedItem, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String phoneNumber = TextUtils.fixPhoneNumber(listItem.number);
+                        for (int iList = 0; iList < list.myList.size(); ++iList) {
+                            ContactsList list = MainActivity.this.list.myList.get(iList);
+                            for (int i = 0; i < list.size(); ++i) {
+                                ContactsListItem item = list.get(i);
+                                String other = TextUtils.fixPhoneNumber(item.number);
+                                boolean equals = other.equals(phoneNumber)
+                                        || other.endsWith(phoneNumber)
+                                        || phoneNumber.endsWith(other);
+                                if (equals)
+                                    item.cityId = cityList.get(which).id;
+                            }
+                        }
+                        rebind();
+                        dialog.dismiss();
+                        Toast.makeText(MainActivity.this,
+                                String.format(getString(R.string.dlg_select_city_msg), listItem.number),
+                                Toast.LENGTH_LONG).show();
+                    }
+                })
+                .show();
     }
 
     @Override
@@ -272,7 +338,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         return true;
     }
 
-    private void checkPermissions() {
+    private boolean checkPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             ArrayList<String> neededPermissions = new ArrayList<>(Arrays.asList(
                     Manifest.permission.CALL_PHONE,
@@ -289,10 +355,25 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             if (!neededPermissions.isEmpty()) {
                 requestPermissions(neededPermissions.toArray(new String[0]),
                         PERMISSION_RQUEST);
+                return false;
             } else if (!Settings.canDrawOverlays(this)) {
-                OsUtils.requestSystemAlertPermission(this, PERMISSION_RQUEST);
+                new AlertDialog.Builder(this)
+                        .setTitle(R.string.dialog_title_systemalert_permission)
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setMessage(R.string.dialog_msg_systemalert_permission)
+                        .setOnDismissListener(new DialogInterface.OnDismissListener() {
+                            @Override
+                            public void onDismiss(DialogInterface dialog) {
+                                OsUtils.requestSystemAlertPermission(
+                                        MainActivity.this,
+                                        PERMISSION_RQUEST);
+                            }
+                        })
+                        .show();
+                return false;
             }
         }
+        return true;
     }
 
     @Override
@@ -393,6 +474,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                     item.index = adapter.getCount();
                                     item.callCount = 1;
                                     adapter.add(item);
+                                    showSelectCityDialog(item);
                                 }
                                 cursor.moveToNext();
                             }

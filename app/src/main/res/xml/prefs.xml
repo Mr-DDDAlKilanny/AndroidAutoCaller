@@ -4,14 +4,39 @@
         android:key="playFinishTune"
         android:defaultValue="true"
         android:title="@string/pref_playfinishtune_title"
-        android:summary="@string/pref_playfinishtune_descr"
-        />
+        android:summary="@string/pref_playfinishtune_descr" />
     <ListPreference
         android:key="autoRecallListNo"
         android:title="@string/auto_recall_count"
         android:summary="@string/auto_recall_count_summary"
         android:entries="@array/auto_recall_count_names"
         android:entryValues="@array/auto_recall_count_values"
-        android:defaultValue="@string/auto_recall_count_array_default_value"
-        />
+        android:defaultValue="@string/auto_recall_count_array_default_value" />
+    <PreferenceCategory android:title="@string/pref_ring_by_city">
+        <SwitchPreference
+            android:key="cityBasedRingEnabled"
+            android:defaultValue="true"
+            android:title="@string/pref_enablecity_title"
+            android:summary="@string/pref_enablecity_summary" />
+        <!--<EditTextPreference-->
+            <!--android:dependency="cityBasedRingEnabled"-->
+            <!--android:key="minMinutesAfterFajr"-->
+            <!--android:title="@string/pref_minMinutesAfterFajr_title"-->
+            <!--android:summary="@string/pref_minMinutesAfterFajr_summary"-->
+            <!--android:defaultValue="0" />-->
+        <!--<EditTextPreference-->
+            <!--android:dependency="cityBasedRingEnabled"-->
+            <!--android:key="minMinutesBeforeSunrise"-->
+            <!--android:title="@string/pref_minMinutesBeforeSunrise_title"-->
+            <!--android:summary="@string/pref_minMinutesBeforeSunrise_summary"-->
+            <!--android:defaultValue="0" />-->
+        <ListPreference
+            android:dependency="cityBasedRingEnabled"
+            android:key="priorityOfRing"
+            android:title="@string/pref_ringPriority_title"
+            android:summary="@string/pref_ringPriority_summary"
+            android:entries="@array/ring_priority_names"
+            android:entryValues="@array/ring_priority_values"
+            android:defaultValue="@string/ring_priority_array_default_value" />
+    </PreferenceCategory>
 </PreferenceScreen>
