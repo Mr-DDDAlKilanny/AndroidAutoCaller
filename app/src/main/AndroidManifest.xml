@@ -94,8 +94,9 @@
         <activity
             android:name=".activities.CitiesActivity"
             android:label="@string/title_activity_cities"
-            android:theme="@style/AppTheme.NoActionBar"></activity>
+            android:theme="@style/AppTheme.NoActionBar" />
         <activity android:name=".activities.EditCityActivity" />
+        <activity android:name=".activities.ShowCityPrayTimesActivity"></activity>
     </application>
 
 </manifest>

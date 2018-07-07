@@ -49,7 +49,7 @@
         <android.support.v7.widget.AppCompatAutoCompleteTextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:completionHint="Saved Countries"
+            android:completionHint="@string/saved_countries"
             android:completionThreshold="1"
             android:id="@+id/txtCountryName" />
     </LinearLayout>

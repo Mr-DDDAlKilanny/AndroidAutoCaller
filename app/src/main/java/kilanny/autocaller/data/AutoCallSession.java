@@ -22,8 +22,8 @@ public final class AutoCallSession implements Serializable {
     private transient Context context;
     private transient boolean started;
 
-    private int listCurrentCallItemIdx = 1;
-    private int listCurrentCallItemCount = 0;
+    private int listCurrentCallItemIdx = 0;
+    private int listCurrentCallItemCount = 1;
     private int listAutoRecallCount = 0;
     private final HashSet<String> ansOrRejectedNumbers = new HashSet<>();
 
@@ -77,12 +77,22 @@ public final class AutoCallSession implements Serializable {
         save();
     }
 
+    public void incrementListCurrentCallItemIdx() {
+        ++listCurrentCallItemIdx;
+        save();
+    }
+
     public int getListCurrentCallItemCount() {
         return listCurrentCallItemCount;
     }
 
     public void setListCurrentCallItemCount(int listCurrentCallItemCount) {
         this.listCurrentCallItemCount = listCurrentCallItemCount;
+        save();
+    }
+
+    public void incrementListCurrentCallItemCount() {
+        ++listCurrentCallItemCount;
         save();
     }
 

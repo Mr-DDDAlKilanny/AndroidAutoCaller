@@ -29,5 +29,6 @@
     <string-array name="city_item_options">
         <item>تعديل</item>
         <item>حذف</item>
+        <item>عرض أوقات الصلاة</item>
     </string-array>
 </resources>

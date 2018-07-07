@@ -34,6 +34,7 @@ import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.telephony.TelephonyManager;
+import android.text.format.Time;
 import android.util.Log;
 import android.util.Pair;
 import android.view.WindowManager;
@@ -46,7 +47,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
@@ -120,6 +120,9 @@ public class AutoCallService extends Service {
     private BroadcastReceiver phoneStatusChangedBroadcastReceiver;
 
     private AutoCallSession callSession;
+    private boolean pref_cityBasedRingEnabled;
+    private int pref_autoRecallListNo;
+    private int myTimezoneOffset;
     private final Map<Integer, Pair<Integer, Integer>> cachedCitiesTimes = new HashMap<>();
 
     private AutoCallLog.AutoCallSession currentSession;
@@ -153,6 +156,10 @@ public class AutoCallService extends Service {
             if (_lastInstance.phoneStatusChangedBroadcastReceiver != null) {
                 _lastInstance.unregisterReceiver(_lastInstance.phoneStatusChangedBroadcastReceiver);
                 _lastInstance.phoneStatusChangedBroadcastReceiver = null;
+            }
+            if (_lastInstance.pendingRecallRunnable != null) {
+                _lastInstance.runOnUiThreadHandler.removeCallbacks(_lastInstance.pendingRecallRunnable);
+                _lastInstance.pendingRecallRunnable = null;
             }
             if (_lastInstance.lastServiceStartId != -1) {
                 int tmp = _lastInstance.lastServiceStartId;
@@ -376,6 +383,11 @@ public class AutoCallService extends Service {
             list.getLog().sessions.add(currentSession);
             list.save(this);
         }
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+        pref_cityBasedRingEnabled = pref.getBoolean("cityBasedRingEnabled", true);
+        pref_autoRecallListNo = Integer.parseInt(pref.getString(
+                "autoRecallListNo", getString(R.string.auto_recall_count_array_default_value)));
+        myTimezoneOffset = TimeZone.getDefault().getOffset(new Date().getTime());
         updateNotificationTextView(R.id.callListName, list.getName());
 
         canMakeCalls = new AtomicBoolean(true);
@@ -583,13 +595,28 @@ public class AutoCallService extends Service {
         autoHangupTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                App application = App.get(AutoCallService.this);
-                callSession.addNumberToRejectersList(application.lastCallNumber);
+                //App application = App.get(AutoCallService.this);
+                //callSession.addNumberToRejectersList(application.lastCallNumber);
                 Log.d("runKillAutoCallTask", "Call period timed out. Terminating...");
                 terminateActiveCall();
             }
         }, KILL_CALL_AFTER_SECONDS * 1000);
     }
+
+    private void updateLastCallResult(boolean ans) {
+        //ignore the first result when retry calls has been chosen
+        if (currentSession.get(currentSession.size() - 1)
+                instanceof AutoCallLog.AutoCall) {
+            Log.d("AutoCallItem", "calling result: " + ans
+                    + ", index = " + callSession.getListCurrentCallItemIdx()
+                    + ", count = " + callSession.getListCurrentCallItemCount());
+            ((AutoCallLog.AutoCall) currentSession.get(currentSession.size() - 1)).result = ans ?
+                    AutoCallLog.AutoCall.RESULT_ANSWERED_OR_REJECTED :
+                    AutoCallLog.AutoCall.RESULT_NOT_ANSWERED;
+        }
+    }
+
+    private Runnable pendingRecallRunnable;
 
     private void nextCall() {
         if (App.get(this).verifiedByOutgoingReceiver) {
@@ -607,49 +634,60 @@ public class AutoCallService extends Service {
                                 .verifiedByOutgoingReceiver || !callSession.isStarted())
                             return; // stopped by user
                         ContactsListItem listItem = list.get(callSession.getListCurrentCallItemIdx());
-                        byte canCall = AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
                         try {
-                            if (listItem.cityId != null)
-                                canCall = getCanCallStatus(listItem.cityId);
+                            // check even the current number, maybe sunrised and cannot inc count
                             if ((ans = hasRejectedOrAnsweredOutgoingCall(listItem.number))
-                                    || canCall != AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED
+                                    || (listItem.cityId != null && getCanCallStatus(listItem.cityId) != AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED)
                                     || 1 + callSession.getListCurrentCallItemCount() > listItem.callCount) {
-                                callSession.setListCurrentCallItemCount(1);
-                                if (canCall != AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED)
-                                    addSessionIgnoredCall(new Date(), listItem.name, listItem.number, canCall);
-                                else if (ans)
+
+                                if (ans)
                                     callSession.addNumberToRejectersList(listItem.number);
 
-                                callSession.setListCurrentCallItemIdx(1 + callSession.getListCurrentCallItemIdx());
-                                while (callSession.getListCurrentCallItemIdx() < list.size() && (
-                                        callSession.containsNumberInRejectersList(list.get(callSession.getListCurrentCallItemIdx()).number)
-                                                || numberInRejectedNumbers(groups, list.get(callSession.getListCurrentCallItemIdx()).number))) {
-                                    callSession.setListCurrentCallItemIdx(1 + callSession.getListCurrentCallItemIdx());
+                                callSession.incrementListCurrentCallItemIdx();
+                                callSession.setListCurrentCallItemCount(1);
+
+                                while (callSession.getListCurrentCallItemIdx() < list.size()) {
+                                    listItem = list.get(callSession.getListCurrentCallItemIdx());
+                                    if (!callSession.containsNumberInRejectersList(listItem.number)
+                                            && !numberInRejectedNumbers(groups, listItem.number)) {
+                                        byte canCall = listItem.cityId != null ? getCanCallStatus(listItem.cityId)
+                                                : AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
+                                        if (canCall != AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED) {
+                                            updateLastCallResult(ans);
+                                            addSessionIgnoredCall(new Date(), listItem.name, listItem.number, canCall);
+                                        } else break;
+                                    }
+                                    callSession.incrementListCurrentCallItemIdx();
                                 }
                                 if (callSession.getListCurrentCallItemIdx() >= list.size()) {
                                     finished = true;
                                     return;
                                 }
                             } else
-                                callSession.setListCurrentCallItemCount(1 + callSession.getListCurrentCallItemCount());
+                                callSession.incrementListCurrentCallItemCount();
                         } finally {
-                            //ignore the first result when retry calls has been chosen
-                            if (currentSession.get(currentSession.size() - 1)
-                                    instanceof AutoCallLog.AutoCall) {
-                                Log.d("AutoCallItem", "calling result: " + ans
-                                        + ", index = " + callSession.getListCurrentCallItemIdx()
-                                        + ", count = " + callSession.getListCurrentCallItemCount());
-                                ((AutoCallLog.AutoCall) currentSession.get(currentSession.size() - 1)).result = ans ?
-                                        AutoCallLog.AutoCall.RESULT_ANSWERED_OR_REJECTED :
-                                        AutoCallLog.AutoCall.RESULT_NOT_ANSWERED;
-                            }
+                            updateLastCallResult(ans);
                             if (finished) {
                                 int firstNotAnsweredIdx = -1;
+                                boolean allBeforeFajr = true;
+                                String minFajrTime = null;
                                 for (int i = 0; i < list.size(); ++i) {
-                                    if (!callSession.containsNumberInRejectersList(list.get(i).number)
-                                            && !numberInRejectedNumbers(groups, list.get(i).number)) {
-                                        firstNotAnsweredIdx = i;
-                                        break;
+                                    listItem = list.get(i);
+                                    if (!callSession.containsNumberInRejectersList(listItem.number)
+                                            && !numberInRejectedNumbers(groups, listItem.number)) {
+                                        byte canCall = listItem.cityId != null ? getCanCallStatus(listItem.cityId)
+                                                : AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
+                                        if (canCall != AutoCallLog.AutoCallIgnored.RESULT_IGNORED_AFTER_SUNRISE) {
+                                            if (firstNotAnsweredIdx == -1)
+                                                firstNotAnsweredIdx = i;
+                                            if (canCall == AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED)
+                                                allBeforeFajr = false;
+                                            else {
+                                                String time = getFajrTime(listItem.cityId);
+                                                if (minFajrTime == null || minFajrTime.compareTo(time) > 0)
+                                                    minFajrTime = time;
+                                            }
+                                        }
                                     }
                                 }
                                 if (firstNotAnsweredIdx >= 0) {
@@ -657,6 +695,7 @@ public class AutoCallService extends Service {
                                     final Runnable recallRunnable = new Runnable() {
                                         @Override
                                         public void run() {
+                                            pendingRecallRunnable = null;
                                             callSession.setListCurrentCallItemCount(0);
                                             callSession.setListCurrentCallItemIdx(tmpIdx);
                                             currentSession.add(new AutoCallLog.AutoCallRetry());
@@ -664,33 +703,74 @@ public class AutoCallService extends Service {
                                             nextCall();
                                         }
                                     };
-                                    if (getNumAutoRecallList() > callSession.getListAutoRecallCount()) {
+                                    if (pref_autoRecallListNo > callSession.getListAutoRecallCount()) {
                                         callSession.setListAutoRecallCount(
                                                 callSession.getListAutoRecallCount() + 1);
                                         recallRunnable.run();
                                     } else {
+                                        final boolean _allBeforeFajr = allBeforeFajr;
+                                        final String _minFajr = minFajrTime;
                                         runOnUiThread(new Runnable() {
                                             @Override
                                             public void run() {
-                                                android.app.AlertDialog dlg = new android.app.AlertDialog.Builder(getApplicationContext())
-                                                        .setTitle(R.string.some_not_answered_title)
-                                                        .setCancelable(false)
-                                                        .setMessage(R.string.some_not_answered_body)
-                                                        .setIcon(android.R.drawable.ic_dialog_info)
-                                                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                                                AlertDialog dlg;
+                                                if (_allBeforeFajr) {
+                                                    dlg = new AlertDialog.Builder(getApplicationContext())
+                                                            .setTitle(R.string.some_not_answered_title)
+                                                            .setCancelable(false)
+                                                            .setMessage(String.format(getString(R.string.all_before_fajr_message), _minFajr))
+                                                            .setIcon(android.R.drawable.ic_dialog_info)
+                                                            .setPositiveButton(R.string.retry_now, new DialogInterface.OnClickListener() {
 
-                                                            public void onClick(DialogInterface dialog, int whichButton) {
-                                                                stopFinishRingtone();
-                                                                recallRunnable.run();
-                                                            }
-                                                        })
-                                                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-                                                            @Override
-                                                            public void onClick(DialogInterface dialog, int which) {
-                                                                stopFinishRingtone();
-                                                                stopAutoCall(true);
-                                                            }
-                                                        }).create();
+                                                                public void onClick(DialogInterface dialog, int whichButton) {
+                                                                    stopFinishRingtone();
+                                                                    recallRunnable.run();
+                                                                }
+                                                            })
+                                                            .setNeutralButton(R.string.schedule_recall, new DialogInterface.OnClickListener() {
+                                                                @Override
+                                                                public void onClick(DialogInterface dialog, int which) {
+                                                                    stopFinishRingtone();
+                                                                    updateNotificationTextView(R.id.currentCallee, getString(R.string.waiting_fajr));
+                                                                    Time dtNow = new Time();
+                                                                    dtNow.setToNow();
+                                                                    int currentTime = dtNow.hour * 60 + dtNow.minute;
+                                                                    String sTime[] = _minFajr.split(":");
+                                                                    int nextTime = Integer.parseInt(sTime[0]) * 60 +
+                                                                            Integer.parseInt(sTime[1]);
+                                                                    int delay = (nextTime - currentTime + 1) * 60 * 1000;
+                                                                    runOnUiThreadHandler.postDelayed(recallRunnable, delay);
+                                                                    pendingRecallRunnable = recallRunnable;
+                                                                }
+                                                            })
+                                                            .setNegativeButton(R.string.stop_calls, new DialogInterface.OnClickListener() {
+                                                                @Override
+                                                                public void onClick(DialogInterface dialog, int which) {
+                                                                    stopFinishRingtone();
+                                                                    stopAutoCall(true);
+                                                                }
+                                                            }).create();
+                                                } else {
+                                                    dlg = new AlertDialog.Builder(getApplicationContext())
+                                                            .setTitle(R.string.some_not_answered_title)
+                                                            .setCancelable(false)
+                                                            .setMessage(R.string.some_not_answered_body)
+                                                            .setIcon(android.R.drawable.ic_dialog_info)
+                                                            .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+
+                                                                public void onClick(DialogInterface dialog, int whichButton) {
+                                                                    stopFinishRingtone();
+                                                                    recallRunnable.run();
+                                                                }
+                                                            })
+                                                            .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                                                                @Override
+                                                                public void onClick(DialogInterface dialog, int which) {
+                                                                    stopFinishRingtone();
+                                                                    stopAutoCall(true);
+                                                                }
+                                                            }).create();
+                                                }
                                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                                     dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
                                                 } else {
@@ -741,13 +821,6 @@ public class AutoCallService extends Service {
         float vol = audioManager.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION);
         mediaPlayer.setVolume(vol, vol);
         mediaPlayer.start();
-    }
-
-    private int getNumAutoRecallList() {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        String string = preferences.getString("autoRecallListNo",
-                getString(R.string.auto_recall_count_array_default_value));
-        return Integer.parseInt(string);
     }
 
     private void stopAutoCall(boolean shouldStopSelf) {
@@ -823,17 +896,12 @@ public class AutoCallService extends Service {
      * 2 => sunrise was started
      */
     private byte getCanCallStatus(int cityId) {
-        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-        if (!pref.getBoolean("cityBasedRingEnabled", true)) {
+        if (!pref_cityBasedRingEnabled)
             return AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
-        }
-        City city = cityList.findById(cityId);
-        Date now = new Date();
-        int timeZoneOffset = 1000 * 60 * 60 * city.timezone;
-        TimeZone timeZone = TimeZone.getTimeZone(TimeZone.getAvailableIDs(timeZoneOffset)[0]);
-        Calendar calendar = Calendar.getInstance(timeZone);
-        calendar.setTime(now);
-        int currentTime = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE);
+
+        Time dtNow = new Time();
+        dtNow.setToNow();
+        int currentTime = dtNow.hour * 60 + dtNow.minute;
         int fajr, sun;
 
         if (cachedCitiesTimes.containsKey(cityId)) {
@@ -841,6 +909,13 @@ public class AutoCallService extends Service {
             fajr = pair.first;
             sun = pair.second;
         } else {
+            City city = cityList.findById(cityId);
+            Date now = new Date();
+            int timeZoneOffset = 1000 * 60 * 60 * city.timezone;
+            TimeZone timeZone = TimeZone.getTimeZone(TimeZone.getAvailableIDs(timeZoneOffset)[0]);
+            Calendar calendar = Calendar.getInstance(timeZone);
+            calendar.setTime(now);
+
             PrayTimes prayers = new PrayTimes();
             prayers.setTimeFormat(PrayTimes.TIME_Time24);
             prayers.setCalcMethod(city.prayerCalcMethod);
@@ -853,28 +928,38 @@ public class AutoCallService extends Service {
                     city.lat, city.lng, city.timezone);
             String[] fajrS = prayerTimes.get(0).split(":");
             String[] sunriseS = prayerTimes.get(1).split(":");
-            fajr = Integer.parseInt(fajrS[0]) * 60 + Integer.parseInt(fajrS[1]);
-            sun = Integer.parseInt(sunriseS[0]) * 60 + Integer.parseInt(sunriseS[1]);
+            int myTimezone = myTimezoneOffset / (1000 * 60 * 60);
+            int diffTimezone = myTimezone - city.timezone;
+            fajr = ((Integer.parseInt(fajrS[0]) + diffTimezone) % 24) * 60 + Integer.parseInt(fajrS[1]);
+            sun = ((Integer.parseInt(sunriseS[0]) + diffTimezone) % 24) * 60 + Integer.parseInt(sunriseS[1]);
+            fajr += city.minMinuteAfterFajr;
+            sun -= city.minMinutesBeforeSunrise;
             cachedCitiesTimes.put(cityId, new Pair<>(fajr, sun));
         }
-        fajr += city.minMinuteAfterFajr;
-        sun -= city.minMinutesBeforeSunrise;
         if (currentTime >= fajr && currentTime < sun) {
             Log.d("canCallStatus",
-                    String.format(Locale.ENGLISH, "Call is available at %s %d - fajr %d sunrise %d",
-                    city.name, currentTime, fajr, sun));
+                    String.format(Locale.ENGLISH, "Call is available at %d %d - fajr %d sunrise %d",
+                    cityId, currentTime, fajr, sun));
             return AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
         }
         if (currentTime < fajr) {
             Log.d("canCallStatus",
-                    String.format(Locale.ENGLISH, "Call is before fajr at %s %d - fajr %d sunrise %d",
-                            city.name, currentTime, fajr, sun));
+                    String.format(Locale.ENGLISH, "Call is before fajr at %d %d - fajr %d sunrise %d",
+                            cityId, currentTime, fajr, sun));
             return AutoCallLog.AutoCallIgnored.RESULT_IGNORED_BEFORE_FAJR;
         }
         Log.d("canCallStatus",
-                String.format(Locale.ENGLISH, "Call is after sunrise at %s %d - fajr %d sunrise %d",
-                        city.name, currentTime, fajr, sun));
+                String.format(Locale.ENGLISH, "Call is after sunrise at %d %d - fajr %d sunrise %d",
+                        cityId, currentTime, fajr, sun));
         return AutoCallLog.AutoCallIgnored.RESULT_IGNORED_AFTER_SUNRISE;
+    }
+
+    private String getFajrTime(int cityId) {
+        if (!cachedCitiesTimes.containsKey(cityId))
+            getCanCallStatus(cityId);
+        Pair<Integer, Integer> pair = cachedCitiesTimes.get(cityId);
+        int fajr = pair.first;
+        return String.format(Locale.ENGLISH, "%02d:%02d", fajr / 60, fajr % 60);
     }
 
     // Handler that receives messages from the thread
@@ -889,21 +974,17 @@ public class AutoCallService extends Service {
 
             while (callSession.getListCurrentCallItemIdx() < list.size()) {
                 ContactsListItem item = list.get(callSession.getListCurrentCallItemIdx());
-                if (callSession.containsNumberInRejectersList(item.number)
-                                || numberInRejectedNumbers(groups, item.number))
-                    callSession.setListCurrentCallItemIdx(1 + callSession.getListCurrentCallItemIdx());
-                else {
+                if (!callSession.containsNumberInRejectersList(item.number)
+                                && !numberInRejectedNumbers(groups, item.number)) {
                     byte canCall = AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
-                    if (item.cityId != null) {
+                    if (item.cityId != null)
                         canCall = getCanCallStatus(item.cityId);
-                    }
                     if (canCall == AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED)
                         break;
-                    else {
+                    else
                         addSessionIgnoredCall(new Date(), item.name, item.number, canCall);
-                        callSession.setListCurrentCallItemIdx(1 + callSession.getListCurrentCallItemIdx());
-                    }
                 }
+                callSession.incrementListCurrentCallItemIdx();
             }
             if (callSession.getListCurrentCallItemIdx() >= list.size()) {
                 // All replied, sunrised, or before fajr

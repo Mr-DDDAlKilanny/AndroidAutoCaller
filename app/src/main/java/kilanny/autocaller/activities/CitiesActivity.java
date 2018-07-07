@@ -114,6 +114,13 @@ public class CitiesActivity extends AppCompatActivity {
                                     case 1:
                                         delete(country, city);
                                         break;
+                                    case 2: {
+                                        Intent i = new Intent(
+                                                CitiesActivity.this, ShowCityPrayTimesActivity.class);
+                                        i.putExtra("cityId", cities.findByName(country, city).id);
+                                        startActivity(i);
+                                    }
+                                        break;
                                 }
                             }
                         })

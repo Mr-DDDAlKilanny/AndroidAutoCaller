@@ -118,4 +118,16 @@ You can view the log for calls from the above menu.</string>
     <string name="dlg_failedToStart_msg">Cannot call any item in list, because all are either rejected, sunrised, or before fajr.</string>
     <string name="ignored_before_fajr">Ignored: before Fajr</string>
     <string name="ignored_after_sunrise">Ignored: after sunrise</string>
+    <string name="fajr">Fajr</string>
+    <string name="sunrise">Sunrise</string>
+    <string name="dhuhr">Dhuhr</string>
+    <string name="asr">Asr</string>
+    <string name="maghrib">Maghrib</string>
+    <string name="isha">Isha</string>
+    <string name="saved_countries">Saved Countries</string>
+    <string name="notice_pray_times">Pray Times Displayed in your timezone</string>
+    <string name="all_before_fajr_message">All remaining contacts in list are before Fajr. The first contact can be called at %s. Please choose what to do</string>
+    <string name="retry_now">Retry now</string>
+    <string name="schedule_recall">Schedule Recall</string>
+    <string name="waiting_fajr">[ Waiting Fajr ]</string>
 </resources>

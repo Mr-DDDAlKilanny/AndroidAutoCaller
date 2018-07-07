@@ -29,5 +29,6 @@
     <string-array name="city_item_options">
         <item>Edit</item>
         <item>Delete</item>
+        <item>Show Pray Times</item>
     </string-array>
 </resources>

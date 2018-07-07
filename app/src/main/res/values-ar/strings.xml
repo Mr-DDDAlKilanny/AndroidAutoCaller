@@ -52,7 +52,6 @@
     <string name="auto_recall_count_summary">عدد مرات إعادة الاتصال بالأرقام التي لم ترد في القائمة</string>
     <string name="auto_recall_count_array_default_name">بلا إعادة اتصال</string>
     <string name="auto_recall_count">مرات إعادة الاتصال</string>
-    <string name="save_to_clipboard"></string>
     <string name="stopping_auto_calls">جاري إيقاف المكالمات...</string>
     <string name="mission_permissions_msg">لم يتم منح التطبيق صلاحيات التشغيل. الرجاء منح التطبيق الصلاحيات من ضبط الهاتف</string>
     <string name="dialog_title_systemalert_permission">الإذن مطلوب</string>
@@ -104,4 +103,26 @@
     <string name="dlg_failedToStart_msg">لا يمكن الاتصال بأي رقم في القائمة، لأنها إما رد وإما قبل الفجر وإما أشرقت الشمس.</string>
     <string name="ignored_before_fajr">تم تجاهل المكالمة: لم يطلع الفجر</string>
     <string name="ignored_after_sunrise">تم تجاهل المكالمة: طلعت الشمس</string>
+    <string name="fajr">الفجر</string>
+    <string name="sunrise">الشروق</string>
+    <string name="dhuhr">الظهر</string>
+    <string name="asr">العصر</string>
+    <string name="maghrib">المغرب</string>
+    <string name="isha">العشاء</string>
+    <string name="saved_countries">دول محفوظة</string>
+    <string name="jafari">جعفري</string>
+    <string name="karachi">كاراتشي</string>
+    <string name="ISNA">اتحاد أمريكا الشمالية</string>
+    <string name="MWL">منظمة العالم الإسلامي</string>
+    <string name="Makkah">أم القرى</string>
+    <string name="Egypt">الهيئة المصرية للمساحة</string>
+    <string name="Tehran">طهران</string>
+    <string name="shafei">شافعي</string>
+    <string name="hanafi">حنفي</string>
+    <string name="all_fields_required">جميع الحقول مطلوبة</string>
+    <string name="notice_pray_times">يتم عرض أوقات الصلاة حسب التوقيت المحلي لجهازك</string>
+    <string name="all_before_fajr_message">جميع الأشخاص المتبقين لم يطلع عليهم الفجر ويمكن الاتصال بهم عند %s. الرجاء اختيار أحد الإجراءات</string>
+    <string name="retry_now">إعادة المحاولة</string>
+    <string name="schedule_recall">حاول لاحقا</string>
+    <string name="waiting_fajr">[ في انتظار الفجر ]</string>
 </resources>
