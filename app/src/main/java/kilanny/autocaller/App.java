@@ -17,7 +17,7 @@ public class App extends Application {
 
     public Date lastOutgoingCallStartRinging;
     public String lastCallNumber, lastCallName;
-    public int lastCallCurrentCount, lastCallTotalCount;
+    public int lastCallCurrentCount, lastCallTotalCount, lastNumberCallProfileId;
     public boolean verifiedByOutgoingReceiver;
 
     public static App get(Context context) {

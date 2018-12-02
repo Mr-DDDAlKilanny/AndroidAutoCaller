@@ -14,7 +14,7 @@ import javax.inject.Singleton;
 
 import kilanny.autocaller.R;
 import kilanny.autocaller.di.ApplicationContext;
-import kilanny.autocaller.serializers.Serializer;
+import kilanny.autocaller.serializers.SerializerFactory;
 import kilanny.autocaller.utils.PrayTimes;
 
 /**
@@ -25,17 +25,14 @@ public class CityList extends ArrayList<City> implements Serializable {
 
     private static final String LIST_FILE_NAME = "CityList.dat";
 
-    private transient final Serializer serializer;
-
     private int idCounter = 1;
 
     @Inject
-    public CityList(@ApplicationContext Context context,
-                    Serializer serializer) {
-        this.serializer = serializer;
+    public CityList(@ApplicationContext Context context) {
         try {
             FileInputStream fis = context.openFileInput(LIST_FILE_NAME);
-            CityList instance = serializer.deserializeCityList(fis);
+            CityList instance = SerializerFactory.getSerializer()
+                    .deserializeCityList(fis);
             addAll(instance);
             idCounter = instance.idCounter;
             fis.close();
@@ -49,7 +46,8 @@ public class CityList extends ArrayList<City> implements Serializable {
         try {
             FileOutputStream fos = context.openFileOutput(LIST_FILE_NAME,
                     Context.MODE_PRIVATE);
-            byte[] bytes = serializer.serialize(this);
+            byte[] bytes = SerializerFactory.getSerializer()
+                    .serialize(this);
             fos.write(bytes, 0, bytes.length);
             fos.close();
         } catch (IOException e) {

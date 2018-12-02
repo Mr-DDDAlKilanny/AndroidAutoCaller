@@ -5,6 +5,7 @@ import java.io.InputStream;
 
 import javax.inject.Singleton;
 
+import kilanny.autocaller.data.AutoCallProfileList;
 import kilanny.autocaller.data.CityList;
 import kilanny.autocaller.data.ListOfCallingLists;
 
@@ -18,4 +19,7 @@ public interface Serializer {
 
     byte[] serialize(CityList cityList) throws IOException;
     CityList deserializeCityList(InputStream stream) throws IOException;
+
+    byte[] serialize(AutoCallProfileList autoCallProfiles) throws IOException;
+    AutoCallProfileList deserializeAutoCallProfiles(InputStream stream) throws IOException;
 }

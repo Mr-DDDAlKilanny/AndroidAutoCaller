@@ -47,6 +47,45 @@
                 app:layout_constraintRight_toRightOf="@+id/activity_main"
                 android:src="@android:drawable/ic_menu_preferences" />
             <LinearLayout
+                android:id="@+id/callProfilesLayout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/fab_margin"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="invisible"
+                app:layout_constraintBottom_toTopOf="@+id/citiesLayout"
+                app:layout_constraintRight_toRightOf="@+id/activity_main">
+
+                <TextView
+                    android:id="@+id/shareLabelTextView2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginRight="8dp"
+                    android:background="@drawable/shape_fab_label"
+                    android:elevation="2dp"
+                    android:fontFamily="sans-serif"
+                    android:padding="5dip"
+                    android:text="@string/activity_call_profiles"
+                    android:textColor="@android:color/white"
+                    android:typeface="normal" />
+
+
+                <android.support.design.widget.FloatingActionButton
+                    android:id="@+id/callProfilesFab"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:onClick="@{FabHandler::onCallProfilesFabClick}"
+                    android:tint="@android:color/white"
+                    app:fabSize="mini"
+                    app:srcCompat="@android:drawable/ic_dialog_dialer" />
+
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/citiesLayout"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -55,7 +94,6 @@
                 android:orientation="horizontal"
                 android:visibility="invisible"
                 app:layout_constraintBottom_toTopOf="@+id/settingsLayout"
-                app:layout_constraintLeft_toLeftOf="@+id/settingsLayout"
                 app:layout_constraintRight_toRightOf="@+id/activity_main">
 
                 <TextView
@@ -95,7 +133,6 @@
                 android:orientation="horizontal"
                 android:visibility="invisible"
                 app:layout_constraintBottom_toTopOf="@+id/baseFloatingActionButton"
-
                 app:layout_constraintRight_toRightOf="@+id/activity_main">
 
                 <TextView

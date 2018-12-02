@@ -4,6 +4,7 @@ import android.content.Context;
 
 import dagger.Component;
 import kilanny.autocaller.activities.CallListsActivity;
+import kilanny.autocaller.activities.CallProfilesActivity;
 import kilanny.autocaller.activities.CitiesActivity;
 import kilanny.autocaller.activities.EditCityActivity;
 import kilanny.autocaller.activities.EditGroupsActivity;
@@ -29,4 +30,5 @@ public interface ContextComponent {
     void inject(CitiesActivity citiesActivity);
     void inject(EditCityActivity editCityActivity);
     void inject(ShowCityPrayTimesActivity showCityPrayTimesActivity);
+    void inject(CallProfilesActivity callProfilesActivity);
 }

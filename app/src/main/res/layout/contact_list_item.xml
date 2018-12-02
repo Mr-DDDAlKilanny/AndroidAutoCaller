@@ -1,51 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="?android:attr/listPreferredItemHeight"
+    android:layout_height="90dp"
     android:padding="6dip">
-    <ImageButton
-        android:id="@+id/btnMoveUp"
-        android:layout_width="30dp"
-        android:layout_height="fill_parent"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentTop="true"
-        android:src="@android:drawable/arrow_up_float" />
-    <ImageButton
-        android:id="@+id/btnMoveDown"
-        android:layout_width="30dp"
-        android:layout_height="fill_parent"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentTop="true"
-        android:layout_toRightOf="@id/btnMoveUp"
-        android:layout_toEndOf="@id/btnMoveUp"
-        android:src="@android:drawable/arrow_down_float" />
-    <Button
-        android:text="1"
-        android:id="@+id/btnCallCount"
-        android:layout_width="40dp"
+    <LinearLayout
+        android:id="@+id/buttonsLayout"
+        android:orientation="vertical"
+        android:layout_width="wrap_content"
         android:layout_height="match_parent"
-        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
-        android:layout_toRightOf="@id/btnMoveDown"
-        android:layout_toEndOf="@id/btnMoveDown" />
-    <ImageButton
-        android:id="@+id/btnSelectCity"
-        android:layout_width="30dp"
-        android:layout_height="fill_parent"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentTop="true"
-        android:layout_toRightOf="@id/btnCallCount"
-        android:layout_toEndOf="@id/btnCallCount"
-        android:src="@android:drawable/radiobutton_on_background" />
-    <ImageButton
-        android:id="@+id/delete_item"
-        android:layout_width="40dp"
-        android:layout_height="fill_parent"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentTop="true"
-        android:layout_toRightOf="@id/btnSelectCity"
-        android:layout_toEndOf="@id/btnSelectCity"
-        android:src="@android:drawable/ic_delete" />
+        android:layout_alignWithParentIfMissing="true">
+        <RelativeLayout
+            android:layout_weight="1"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent">
+            <ImageButton
+                android:id="@+id/btnMoveUp"
+                android:layout_width="30dp"
+                android:layout_height="match_parent"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentTop="true"
+                android:src="@android:drawable/arrow_up_float" />
+            <ImageButton
+                android:id="@+id/btnMoveDown"
+                android:layout_width="30dp"
+                android:layout_height="match_parent"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentTop="true"
+                android:layout_toRightOf="@id/btnMoveUp"
+                android:layout_toEndOf="@id/btnMoveUp"
+                android:src="@android:drawable/arrow_down_float" />
+            <Button
+                android:text="1"
+                android:id="@+id/btnCallCount"
+                android:layout_width="40dp"
+                android:layout_height="match_parent"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentTop="true"
+                android:layout_toRightOf="@id/btnMoveDown"
+                android:layout_toEndOf="@id/btnMoveDown" />
+        </RelativeLayout>
+        <RelativeLayout
+            android:layout_weight="1"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent">
+            <ImageButton
+                android:id="@+id/btnSelectCity"
+                android:layout_width="30dp"
+                android:layout_height="fill_parent"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentStart="true"
+                android:src="@android:drawable/radiobutton_on_background" />
+            <ImageButton
+                android:id="@+id/btnSelectProfile"
+                android:layout_width="30dp"
+                android:layout_height="fill_parent"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentTop="true"
+                android:layout_toRightOf="@id/btnSelectCity"
+                android:layout_toEndOf="@id/btnSelectCity"
+                android:src="@android:drawable/ic_dialog_dialer" />
+            <ImageButton
+                android:id="@+id/delete_item"
+                android:layout_width="40dp"
+                android:layout_height="fill_parent"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentTop="true"
+                android:layout_toRightOf="@id/btnSelectProfile"
+                android:layout_toEndOf="@id/btnSelectProfile"
+                android:src="@android:drawable/ic_delete" />
+        </RelativeLayout>
+    </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -53,10 +83,10 @@
         android:layout_alignParentEnd="true"
         android:layout_alignParentTop="true"
         android:layout_alignWithParentIfMissing="true"
-        android:layout_toRightOf="@id/delete_item"
+        android:layout_toRightOf="@id/buttonsLayout"
         android:gravity="center_vertical"
         android:orientation="vertical"
-        android:layout_toEndOf="@id/delete_item">
+        android:layout_toEndOf="@id/buttonsLayout">
         <TextView
             android:text="فلان بن فلان الفلاني"
             android:layout_weight="1"

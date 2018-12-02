@@ -45,6 +45,8 @@ import javax.inject.Inject;
 
 import kilanny.autocaller.App;
 import kilanny.autocaller.R;
+import kilanny.autocaller.data.AutoCallProfile;
+import kilanny.autocaller.data.AutoCallProfileList;
 import kilanny.autocaller.data.AutoCallSession;
 import kilanny.autocaller.data.City;
 import kilanny.autocaller.data.CityList;
@@ -73,6 +75,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private ContactsList list;
     @Inject ListOfCallingLists listOfCallingLists;
     @Inject CityList cityList;
+    @Inject AutoCallProfileList callProfileList;
     private boolean continueLastSession = false;
 
     private void rebind() {
@@ -286,6 +289,12 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         showSelectCityDialog(listItem);
                     }
                 });
+                rowView.findViewById(R.id.btnSelectProfile).setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        showSelectCallProfileDialog(listItem);
+                    }
+                });
                 return rowView;
             }
         };
@@ -319,6 +328,44 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                         || phoneNumber.endsWith(other);
                                 if (equals)
                                     item.cityId = cityList.get(which).id;
+                            }
+                        }
+                        rebind();
+                        dialog.dismiss();
+                        Toast.makeText(MainActivity.this,
+                                String.format(getString(R.string.dlg_select_city_msg), listItem.number),
+                                Toast.LENGTH_LONG).show();
+                    }
+                })
+                .show();
+    }
+
+    private void showSelectCallProfileDialog(final ContactsListItem listItem) {
+        String[] profiles = new String[callProfileList.size()];
+        int selectedItem = -1;
+        for (int i = 0; i < callProfileList.size(); ++i) {
+            AutoCallProfile profile = callProfileList.get(i);
+            profiles[i] = profile.name;
+            if (listItem.callProfileId != null && listItem.callProfileId == profile.id)
+                selectedItem = i;
+        }
+
+        new AlertDialog.Builder(MainActivity.this)
+                .setTitle(getString(R.string.dlg_select_profile_title) + " - " + listItem.number)
+                .setSingleChoiceItems(profiles, selectedItem, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String phoneNumber = TextUtils.fixPhoneNumber(listItem.number);
+                        for (int iList = 0; iList < list.myList.size(); ++iList) {
+                            ContactsList list = MainActivity.this.list.myList.get(iList);
+                            for (int i = 0; i < list.size(); ++i) {
+                                ContactsListItem item = list.get(i);
+                                String other = TextUtils.fixPhoneNumber(item.number);
+                                boolean equals = other.equals(phoneNumber)
+                                        || other.endsWith(phoneNumber)
+                                        || phoneNumber.endsWith(other);
+                                if (equals)
+                                    item.callProfileId = callProfileList.get(which).id;
                             }
                         }
                         rebind();

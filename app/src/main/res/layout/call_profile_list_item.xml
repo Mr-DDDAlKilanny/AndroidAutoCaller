@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="?android:attr/listPreferredItemHeight"
+    android:padding="6dip">
+    <ImageButton
+        android:id="@+id/btnDeleteItem"
+        android:layout_width="40dp"
+        android:layout_height="fill_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentTop="true"
+        android:src="@android:drawable/ic_delete" />
+    <ImageButton
+        android:id="@+id/btnEditItem"
+        android:layout_width="40dp"
+        android:layout_height="fill_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentTop="true"
+        android:layout_toRightOf="@id/btnDeleteItem"
+        android:layout_toEndOf="@id/btnDeleteItem"
+        android:src="@android:drawable/ic_menu_edit" />
+    <TextView
+        android:text="فلان بن فلان الفلاني"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:layout_alignWithParentIfMissing="true"
+        android:layout_toRightOf="@id/btnEditItem"
+        android:layout_toEndOf="@id/btnEditItem"
+        android:textStyle="bold"
+        android:layout_gravity="end"
+        android:id="@+id/textViewProfileName"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="start"
+        android:textSize="16sp" />
+</RelativeLayout>

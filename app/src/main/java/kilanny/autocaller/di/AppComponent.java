@@ -19,8 +19,6 @@ import kilanny.autocaller.serializers.Serializer;
 public interface AppComponent {
     void inject(App app);
 
-    Serializer getSerializer();
-
     ListOfCallingLists getListOfCallingLists();
 
     CityList getCityList();

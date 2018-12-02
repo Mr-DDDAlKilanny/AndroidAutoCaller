@@ -25,12 +25,14 @@
     <string name="confirm_delete_group_body">متأكد أنك تريد حذف هذه المجموعة؟</string>
     <string name="confirm_delete_group_title">تأكيد</string>
     <string name="group_name">اسم المجموعة:</string>
+    <string name="call_profile_name">اسم وضع الرن:</string>
     <string name="list_items">أعضاء المجموعة:</string>
     <string name="add_contactgroup">إضافة مجموعة</string>
     <string name="please_input_group_name">الرجاء ملء اسم المجموعة</string>
     <string name="group_name_already_exists">اسم المجموعة موجود مسبقا</string>
     <string name="group_members_atleast_two">يجب إضافة عضوين على الأقل للمجموعة</string>
     <string name="action_edit_group">مجموعات الاتصال</string>
+    <string name="action_edit_profile">وضع الرن الآلي</string>
     <string name="groups_help">بواسطة المجموعات، يمكنك إضافة أرقام إلى مجموعة بحيث إن رد أحد الأرقام أو رفض لا يتم الاتصال بالبقية</string>
     <string name="contacts_list_emptry">قائمة الاتصال فارغة. الرجاء إضافة بعض الأسماء إلى قائمة الاتصال في الشاشة الرئيسية</string>
     <string name="some_not_answered_title">الرنان الآلي</string>
@@ -52,7 +54,7 @@
     <string name="auto_recall_count_summary">عدد مرات إعادة الاتصال بالأرقام التي لم ترد في القائمة</string>
     <string name="auto_recall_count_array_default_name">بلا إعادة اتصال</string>
     <string name="auto_recall_count">مرات إعادة الاتصال</string>
-    <string name="stopping_auto_calls">جاري إيقاف المكالمات...</string>
+    <string name="stopping_auto_calls">جاري إيقاف المكالمات…</string>
     <string name="mission_permissions_msg">لم يتم منح التطبيق صلاحيات التشغيل. الرجاء منح التطبيق الصلاحيات من ضبط الهاتف</string>
     <string name="dialog_title_systemalert_permission">الإذن مطلوب</string>
     <string name="dialog_msg_systemalert_permission">يحتاج هذا التطبيق لمنحه صلاحيات عرض رسائل على مستوى النظام أو ما يعرف بـ الرسم فوق التطبيقات الأخرى. المس لعرض إعدادات جهازك ومنح التطبيق الصلاحيات المطلوبة</string>
@@ -86,8 +88,9 @@
     <string name="pref_minMinutesBeforeSunrise_summary">تحديد عدد الدقائق قبل الشروق للتوقف عن الرن على الشخص</string>
     <string name="pref_ringPriority_title">أولوية الأشخاص في الرن</string>
     <string name="pref_ringPriority_summary">تحديد الأولوية للرن على الأشخاص بالترتيب</string>
-    <string name="delete_item">حذف رقم</string>
-    <string name="delete_item_message">متأكد أنك تريد حذف هذا الرقم؟</string>
+    <string name="delete_item">حذف عنصر</string>
+    <string name="err_delete_default_item">لا يمكن حذف العنصر الافتراضي في القائمة</string>
+    <string name="delete_item_message">متأكد أنك تريد حذف هذا العنصر؟</string>
     <string name="dlg_select_city_msg">تغيير جميع الأشخاص ذوو الرقم %s</string>
     <string name="dlg_select_city_title">تغيير مدينة الشخص</string>
     <string name="dlg_deleteCity_title">حذف مدينة</string>
@@ -125,4 +128,19 @@
     <string name="retry_now">إعادة المحاولة</string>
     <string name="schedule_recall">حاول لاحقا</string>
     <string name="waiting_fajr">[ في انتظار الفجر ]</string>
+    <string name="default_profile">الافتراضي</string>
+    <string name="voice_mail_profile">البريد الصوتي (عند عدم الرد)</string>
+    <string name="dlg_select_profile_title">تغيير وضع الرن على الشخص</string>
+    <string name="activity_call_profiles">أوضاع الرن</string>
+    <string name="call_profile_noReplyTimeoutSeconds">مهلة عدم الرد (ثواني):</string>
+    <string name="call_profile_killCallAfterSeconds">إنهاء المكالمة بعد (ثواني):</string>
+    <string name="err_delete_item_in_use">لا يمكن حذف العنصر لوجود عناصر أخرى تستخدمه</string>
+    <string name="automatically_terminated_call">الرنان الآلي: تم إنهاء المكالمة</string>
+    <string name="automatic_terminate_call_failed">الرنان الآلي: فشل إنهاء المكالمة الحالية</string>
+    <string name="pause_calls">مؤقتا</string>
+    <string name="pausing_auto_calls">تم إيقاف المكالمات مؤقتا…</string>
+    <string name="resuming_auto_calls">تم استكمال المكالمات…</string>
+    <string name="resume_calls">استكمال</string>
+    <string name="fatal_exception_dlg_title">خطأ - الرنان الآلي</string>
+    <string name="fatal_exception_dlg_msg">نأسف، لقد حدث خطأ. نرجو بدء العملية من جديد. التفاصيل:</string>
 </resources>

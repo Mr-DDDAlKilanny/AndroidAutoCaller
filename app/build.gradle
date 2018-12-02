@@ -2,14 +2,14 @@ apply plugin: 'com.android.application'
 
 android {
     //compileOptions.incremental = false
-    compileSdkVersion 27
-    buildToolsVersion '27.0.3'
+    compileSdkVersion 28
+    buildToolsVersion '28.0.3'
     defaultConfig {
         applicationId "kilanny.autocaller"
         minSdkVersion 14
-        targetSdkVersion 27
-        versionCode 13
-        versionName '3'
+        targetSdkVersion 28
+        versionCode 14
+        versionName '3.5'
         vectorDrawables.useSupportLibrary true
     }
     buildTypes {
@@ -32,15 +32,15 @@ dependencies {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
     testImplementation 'junit:junit:4.12'
-    implementation 'com.android.support:appcompat-v7:27.1.1'
-    implementation 'com.android.support:design:27.1.1'
-    implementation 'com.android.support:support-v4:27.1.1'
+    implementation 'com.android.support:appcompat-v7:28.0.0'
+    implementation 'com.android.support:design:28.0.0'
+    implementation 'com.android.support:support-v4:28.0.0'
     implementation 'com.google.android.gms:play-services-maps:11.0.0'
     implementation 'com.google.android.gms:play-services-places:11.0.0'
     implementation 'com.google.android.gms:play-services-location:11.0.0'
     testImplementation 'junit:junit:4.12'
-    implementation 'com.google.dagger:dagger:2.12'
-    annotationProcessor 'com.google.dagger:dagger-compiler:2.12'
+    implementation 'com.google.dagger:dagger:2.18'
+    annotationProcessor 'com.google.dagger:dagger-compiler:2.18'
     compileOnly 'javax.annotation:jsr250-api:1.0'
     implementation 'javax.inject:javax.inject:1'
 }

@@ -19,9 +19,11 @@ import java.util.concurrent.Executors;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
+import dagger.Lazy;
 import kilanny.autocaller.di.ApplicationContext;
 import kilanny.autocaller.serializers.BinarySerializer;
 import kilanny.autocaller.serializers.Serializer;
+import kilanny.autocaller.serializers.SerializerFactory;
 
 /**
  * Created by Yasser on 11/18/2016.
@@ -30,7 +32,6 @@ import kilanny.autocaller.serializers.Serializer;
 @Singleton
 public class ListOfCallingLists implements Serializable {
 
-    private transient Serializer serializer;
     private static final String LIST_FILE_NAME = "ListOfCallingLists.dat";
     static final long serialVersionUID =-7719765106986038527L;
     private transient ExecutorService executorService;
@@ -39,12 +40,11 @@ public class ListOfCallingLists implements Serializable {
     private ArrayList<SerializablePair<Integer, ContactsList>> list;
 
     @Inject
-    public ListOfCallingLists(@ApplicationContext Context context,
-                              Serializer serializer) {
-        this.serializer = serializer;
+    public ListOfCallingLists(@ApplicationContext Context context) {
         try {
             FileInputStream fis = context.openFileInput(LIST_FILE_NAME);
-            ListOfCallingLists instance = serializer.deserializeListOfCallingLists(fis);
+            ListOfCallingLists instance = SerializerFactory.getSerializer()
+                    .deserializeListOfCallingLists(fis);
             list = instance.list;
             idCounter = instance.idCounter;
             fis.close();
@@ -87,9 +87,7 @@ public class ListOfCallingLists implements Serializable {
                 try {
                     FileOutputStream fos = context.openFileOutput("tmp" + LIST_FILE_NAME,
                             Context.MODE_PRIVATE);
-                    if (serializer == null)
-                        serializer = new BinarySerializer(); //TODO: fix this bug
-                    byte[] bytes = serializer.serialize(list);
+                    byte[] bytes = SerializerFactory.getSerializer().serialize(list);
                     fos.write(bytes, 0, bytes.length);
                     fos.close();
                     //ObjectOutputStream os = new ObjectOutputStream(fos);

@@ -251,11 +251,11 @@ public class CitiesActivity extends AppCompatActivity {
         }
 
         public void onCreateFabClick(View view) {
-            Snackbar.make(binding.coordinatorLayout, "Create FAB tapped", Snackbar.LENGTH_SHORT).show();
+            //Snackbar.make(binding.coordinatorLayout, "Create FAB tapped", Snackbar.LENGTH_SHORT).show();
         }
 
         public void onShareFabClick(View view) {
-            Snackbar.make(binding.coordinatorLayout, "Share FAB tapped", Snackbar.LENGTH_SHORT).show();
+            //Snackbar.make(binding.coordinatorLayout, "Share FAB tapped", Snackbar.LENGTH_SHORT).show();
         }
     }
 }

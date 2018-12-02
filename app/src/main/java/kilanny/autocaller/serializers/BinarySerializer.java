@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import kilanny.autocaller.data.AutoCallProfileList;
 import kilanny.autocaller.data.CityList;
 import kilanny.autocaller.data.ListOfCallingLists;
 
@@ -33,6 +34,16 @@ public class BinarySerializer implements Serializer {
     @Override
     public CityList deserializeCityList(InputStream stream) throws IOException {
         return (CityList) deserialize(stream);
+    }
+
+    @Override
+    public byte[] serialize(AutoCallProfileList autoCallProfiles) throws IOException {
+        return serialize((Object) autoCallProfiles);
+    }
+
+    @Override
+    public AutoCallProfileList deserializeAutoCallProfiles(InputStream stream) throws IOException {
+        return (AutoCallProfileList) deserialize(stream);
     }
 
     private byte[] serialize(Object o) throws IOException {

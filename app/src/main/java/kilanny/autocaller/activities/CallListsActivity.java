@@ -252,17 +252,26 @@ public class CallListsActivity extends AppCompatActivity {
                 .start();
         binding.settingsLayout.startAnimation(fabOpenAnimation);
         binding.citiesLayout.startAnimation(fabOpenAnimation);
+        binding.callProfilesLayout.startAnimation(fabOpenAnimation);
         binding.citiesFab.setClickable(true);
         binding.fabPrefs.setClickable(true);
+        binding.callProfilesFab.setClickable(true);
         isFabMenuOpen = true;
     }
 
     private void collapseFabMenu() {
-        ViewCompat.animate(binding.baseFloatingActionButton).rotation(0.0F).withLayer().setDuration(300).setInterpolator(new OvershootInterpolator(10.0F)).start();
+        ViewCompat.animate(binding.baseFloatingActionButton)
+                .rotation(0.0F)
+                .withLayer()
+                .setDuration(300)
+                .setInterpolator(new OvershootInterpolator(10.0F))
+                .start();
         binding.settingsLayout.startAnimation(fabCloseAnimation);
         binding.citiesLayout.startAnimation(fabCloseAnimation);
+        binding.callProfilesLayout.startAnimation(fabCloseAnimation);
         binding.citiesFab.setClickable(false);
         binding.fabPrefs.setClickable(false);
+        binding.callProfilesFab.setClickable(false);
         isFabMenuOpen = false;
     }
 
@@ -291,6 +300,10 @@ public class CallListsActivity extends AppCompatActivity {
         public void onCitiesFabClick(View view) {
             //Snackbar.make(binding.coordinatorLayout, "Share FAB tapped", Snackbar.LENGTH_SHORT).show();
             startActivity(new Intent(CallListsActivity.this, CitiesActivity.class));
+        }
+
+        public void onCallProfilesFabClick(View view) {
+            startActivity(new Intent(CallListsActivity.this, CallProfilesActivity.class));
         }
     }
 }

@@ -97,6 +97,10 @@
             android:theme="@style/AppTheme.NoActionBar" />
         <activity android:name=".activities.EditCityActivity" />
         <activity android:name=".activities.ShowCityPrayTimesActivity"></activity>
+        <activity
+            android:name=".activities.CallProfilesActivity"
+            android:label="@string/activity_call_profiles"
+            android:theme="@style/AppTheme.NoActionBar" />
     </application>
 
 </manifest>

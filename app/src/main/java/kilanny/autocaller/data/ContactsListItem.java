@@ -12,6 +12,10 @@ public class ContactsListItem implements Serializable {
 
     public String name, number;
     public int callCount, index;
+
     @Nullable
     public Integer cityId;
+
+    @Nullable
+    public Integer callProfileId;
 }
