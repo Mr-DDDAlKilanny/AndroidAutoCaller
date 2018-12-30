@@ -8,8 +8,8 @@ android {
         applicationId "kilanny.autocaller"
         minSdkVersion 14
         targetSdkVersion 28
-        versionCode 14
-        versionName '3.5'
+        versionCode 15
+        versionName '3.501'
         vectorDrawables.useSupportLibrary true
     }
     buildTypes {

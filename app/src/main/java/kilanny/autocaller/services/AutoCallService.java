@@ -354,11 +354,13 @@ public class AutoCallService extends Service {
             @Override
             public void onReceive(Context context, Intent intent) {
                 int state = intent.getIntExtra("state", -1);
+                Log.d("ServicePhoneListener", "State Received: " + state);
                 if (canMakeCalls == null || !callSession.isStarted()) {
                     // just for handling the first time CALL_STATE_IDLE
                 } else if (TelephonyManager.CALL_STATE_IDLE == state) {
                     cancelCallHangupTimer(true);
                     if (!canMakeCalls.get()) {
+                        Log.d("ServicePhoneListener", "canMakeCalls == false");
                         if (!isPaused.get())
                             stopAutoCall(true);
                     } else nextCall();
@@ -843,7 +845,8 @@ public class AutoCallService extends Service {
                     }
                 }
             }, WAIT_BETWEEN_CALLS_SECONDS, TimeUnit.SECONDS);
-        }
+        } else
+            Log.d("nextCall", "Not verified by outgoing listener; ignoring");
     }
 
     private void onFatalError(Exception ex) {

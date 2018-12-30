@@ -247,10 +247,10 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-                                adapter.remove(listItem);
                                 int idx = list.indexOf(listItem);
                                 for (++idx; idx < list.size(); ++idx)
                                     list.get(idx).index--;
+                                //adapter.remove(listItem);
                                 list.remove(listItem);
                                 rebind();
                             }
@@ -263,8 +263,10 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                     @Override
                     public void onClick(View v) {
                         if (position > 0) {
-                            adapter.remove(listItem);
-                            adapter.insert(listItem, position - 1);
+                            //adapter.remove(listItem);
+                            //adapter.insert(listItem, position - 1);
+                            list.remove(listItem);
+                            list.add(position - 1, listItem);
                             listItem.index--;
                             adapter.getItem(position).index++;
                             rebind();
@@ -275,8 +277,10 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                     @Override
                     public void onClick(View v) {
                         if (position < adapter.getCount() - 1) {
-                            adapter.remove(listItem);
-                            adapter.insert(listItem, position + 1);
+                            //adapter.remove(listItem);
+                            //adapter.insert(listItem, position + 1);
+                            list.remove(listItem);
+                            list.add(position + 1, listItem);
                             listItem.index++;
                             adapter.getItem(position).index--;
                             rebind();
@@ -390,7 +394,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             ArrayList<String> neededPermissions = new ArrayList<>(Arrays.asList(
                     Manifest.permission.CALL_PHONE,
                     Manifest.permission.READ_CONTACTS,
-                    Manifest.permission.READ_CALL_LOG
+                    Manifest.permission.READ_CALL_LOG,
+                    Manifest.permission.READ_PHONE_STATE,
+                    Manifest.permission.PROCESS_OUTGOING_CALLS
                     //,Manifest.permission.SYSTEM_ALERT_WINDOW
             ));
             for (int i = neededPermissions.size() - 1; i >= 0; --i) {
@@ -520,7 +526,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                     item.name = cursor.getString(nameIdx);
                                     item.index = adapter.getCount();
                                     item.callCount = 1;
-                                    adapter.add(item);
+                                    //adapter.add(item);
+                                    list.add(item);
                                     showSelectCityDialog(item);
                                 }
                                 cursor.moveToNext();

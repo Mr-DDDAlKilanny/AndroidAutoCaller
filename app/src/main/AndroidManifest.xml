@@ -60,6 +60,9 @@
         <receiver
             android:name=".services.AutoCallService$StopButtonListener"
             android:exported="false" />
+        <receiver
+            android:name=".services.AutoCallService$PauseButtonListener"
+            android:exported="false" />
         <receiver android:name=".intents.AutoCallPhoneStateListener">
             <intent-filter android:priority="99999">
                 <action android:name="android.intent.action.PHONE_STATE" />
