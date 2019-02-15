@@ -5,6 +5,11 @@
         android:defaultValue="true"
         android:title="@string/pref_playfinishtune_title"
         android:summary="@string/pref_playfinishtune_descr" />
+    <SwitchPreference
+        android:key="showIgnoreDlg"
+        android:defaultValue="false"
+        android:title="@string/pref_show_ignore_title"
+        android:summary="@string/pref_show_ignore_summary" />
     <ListPreference
         android:key="autoRecallListNo"
         android:title="@string/auto_recall_count"
@@ -30,13 +35,13 @@
             <!--android:title="@string/pref_minMinutesBeforeSunrise_title"-->
             <!--android:summary="@string/pref_minMinutesBeforeSunrise_summary"-->
             <!--android:defaultValue="0" />-->
-        <ListPreference
-            android:dependency="cityBasedRingEnabled"
-            android:key="priorityOfRing"
-            android:title="@string/pref_ringPriority_title"
-            android:summary="@string/pref_ringPriority_summary"
-            android:entries="@array/ring_priority_names"
-            android:entryValues="@array/ring_priority_values"
-            android:defaultValue="@string/ring_priority_array_default_value" />
+        <!--<ListPreference-->
+            <!--android:dependency="cityBasedRingEnabled"-->
+            <!--android:key="priorityOfRing"-->
+            <!--android:title="@string/pref_ringPriority_title"-->
+            <!--android:summary="@string/pref_ringPriority_summary"-->
+            <!--android:entries="@array/ring_priority_names"-->
+            <!--android:entryValues="@array/ring_priority_values"-->
+            <!--android:defaultValue="@string/ring_priority_array_default_value" />-->
     </PreferenceCategory>
 </PreferenceScreen>

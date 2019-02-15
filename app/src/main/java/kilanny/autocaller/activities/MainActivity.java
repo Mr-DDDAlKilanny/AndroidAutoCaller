@@ -1,10 +1,13 @@
 package kilanny.autocaller.activities;
 
 import android.Manifest;
+import android.app.Dialog;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -14,6 +17,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.support.annotation.Nullable;
@@ -25,12 +29,14 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -103,7 +109,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         myFinish();
     }
 
-    private void fabClick(View view) {
+    private void fabClick(final View view) {
         int neededPermission = 0;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (ActivityCompat.checkSelfPermission(this,
@@ -152,16 +158,72 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         }
         final Intent serviceIntent = new Intent(
                 MainActivity.this.getApplicationContext(), AutoCallService.class);
+        final Runnable start = new Runnable() {
+            @Override
+            public void run() {
+                startService(serviceIntent);
+                bindService(serviceIntent, MainActivity.this, 0);
+                lastServiceIntent = serviceIntent;
+                Snackbar.make(view, R.string.toast_starting_calls, Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();
+            }
+        };
         if (continueLastSession) {
             serviceIntent.putExtra("continueLastSession", true);
             continueLastSession = false;
-        } else
+        } else {
             serviceIntent.putExtra("callListId", callListId);
-        startService(serviceIntent);
-        bindService(serviceIntent, MainActivity.this, 0);
-        lastServiceIntent = serviceIntent;
-        Snackbar.make(view, R.string.toast_starting_calls, Snackbar.LENGTH_LONG)
-                .setAction("Action", null).show();
+            SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+            if (pref.getBoolean("showIgnoreDlg", false)) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle(R.string.do_you_want_to_ignore);
+                final String numbers[] = getListNumbers();
+                final ArrayList<Integer> selectedItems = new ArrayList<>();
+                builder.setMultiChoiceItems(numbers, null, new DialogInterface.OnMultiChoiceClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which, boolean isChecked) {
+                        if (isChecked)
+                            selectedItems.add(which);
+                        else if (selectedItems.contains(which))
+                            selectedItems.remove(which);
+                    }
+                });
+                builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        StringBuilder b = new StringBuilder();
+                        for (Integer idx : selectedItems)
+                            b.append(numbers[idx].replaceAll("[^0-9+]", ""))
+                                    .append(',');
+                        if (b.length() > 0) {
+                            b.deleteCharAt(b.length() - 1);
+                            serviceIntent.putExtra("ignoreNumbers", b.toString());
+                        }
+                    }
+                });
+                builder.setNegativeButton(android.R.string.cancel, null);
+                builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface dialog) {
+                        start.run();
+                    }
+                });
+                builder.show();
+                return;
+            }
+        }
+        start.run();
+    }
+
+    private String[] getListNumbers() {
+        final ArrayList<String> items = new ArrayList<>();
+        HashSet<String> nums = new HashSet<>();
+        for (ContactsListItem li : list) {
+            if (nums.contains(li.number)) continue;
+            nums.add(li.number);
+            items.add(li.name + String.format(" (%s)", li.number));
+        }
+        return items.toArray(new String[0]);
     }
 
     @Override

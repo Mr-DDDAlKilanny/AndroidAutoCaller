@@ -71,7 +71,7 @@ public class EditGroupsActivity extends AppCompatActivity {
             myListItem.item = li;
             items.add(myListItem);
         }
-        http://www.mysamplecode.com/2012/07/android-listview-checkbox-example.html
+        //http://www.mysamplecode.com/2012/07/android-listview-checkbox-example.html
         listView.setAdapter(new ArrayAdapter<MyListItem>(this,
                 R.layout.contactgrouplist_item, items) {
             class ViewHolder {

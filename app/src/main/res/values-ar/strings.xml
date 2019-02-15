@@ -143,4 +143,7 @@
     <string name="resume_calls">استكمال</string>
     <string name="fatal_exception_dlg_title">خطأ - الرنان الآلي</string>
     <string name="fatal_exception_dlg_msg">نأسف، لقد حدث خطأ. نرجو بدء العملية من جديد. التفاصيل:</string>
+    <string name="do_you_want_to_ignore">هل تريد تجاهل بعض الأرقام من الرن هذه المرة؟</string>
+    <string name="pref_show_ignore_title">عرض مربع تجاهل الأرقام</string>
+    <string name="pref_show_ignore_summary">عرض مربع حوار لاختيار بعض الأرقام لعدم الرن عليها قبل بدء المكالمات الآلية</string>
 </resources>

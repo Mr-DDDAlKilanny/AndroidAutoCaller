@@ -402,6 +402,11 @@ public class AutoCallService extends Service {
             list = listOfCallingLists.getById(callListId);
             callSession = new AutoCallSession(callListId, new Date(), this);
             isNewSession = true;
+
+            String ignoredNumbers = intent.getStringExtra("ignoreNumbers");
+            if (ignoredNumbers != null && ignoredNumbers.trim().length() > 0)
+                for (String number : ignoredNumbers.split(","))
+                    callSession.addNumberToRejectersList(number);
         }
         callSession.setStarted(false);
         if (isNewSession) {
@@ -882,7 +887,7 @@ public class AutoCallService extends Service {
 
     private void playFinishTuneIfRequired() {
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-        if (pref.getBoolean("playFinishTuneIfRequired", true)) {
+        if (pref.getBoolean("playFinishTune", true)) {
             playFinishTune();
         }
     }
