@@ -2,6 +2,7 @@ package kilanny.autocaller.activities;
 
 import android.content.DialogInterface;
 import android.databinding.DataBindingUtil;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -101,6 +102,9 @@ public class CallProfilesActivity extends AppCompatActivity {
     }
 
     private void editProfile(final AutoCallProfile callProfile) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            Toast.makeText(this, R.string.hangup_not_working_android_9, Toast.LENGTH_LONG).show();
+        }
         View view = getLayoutInflater().inflate(R.layout.dlg_edit_call_profile, null);
         final EditText txtProfileName = view.findViewById(R.id.txtProfileName);
         final NumberPicker numNoReplyTimeoutSeconds = view.findViewById(R.id.numNoReplyTimeoutSeconds);

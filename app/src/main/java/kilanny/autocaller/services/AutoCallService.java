@@ -133,6 +133,7 @@ public class AutoCallService extends Service {
     private int pref_autoRecallListNo;
     private int myTimezoneOffset;
     private boolean lastCallTerminatedByApp = false;
+    private int lastCallState = -1;
     private final Map<Integer, Pair<Integer, Integer>> cachedCitiesTimes = new HashMap<>();
 
     private AutoCallLog.AutoCallSession currentSession;
@@ -355,8 +356,11 @@ public class AutoCallService extends Service {
             public void onReceive(Context context, Intent intent) {
                 int state = intent.getIntExtra("state", -1);
                 Log.d("ServicePhoneListener", "State Received: " + state);
-                if (canMakeCalls == null || !callSession.isStarted()) {
+                boolean isDifferentCallState = lastCallState != state;
+                lastCallState = state;
+                if (canMakeCalls == null || !callSession.isStarted() || !isDifferentCallState) {
                     // just for handling the first time CALL_STATE_IDLE
+                    // and also ignoring duplicated phone-state report
                 } else if (TelephonyManager.CALL_STATE_IDLE == state) {
                     cancelCallHangupTimer(true);
                     if (!canMakeCalls.get()) {
@@ -649,7 +653,8 @@ public class AutoCallService extends Service {
                 //App application = App.get(AutoCallService.this);
                 //callSession.addNumberToRejectersList(application.lastCallNumber);
                 Log.d("runKillAutoCallTask", "Call period timed out. Terminating...");
-                terminateActiveCall();
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P)
+                    terminateActiveCall();
             }
         }, afterSeconds * 1000);
     }
