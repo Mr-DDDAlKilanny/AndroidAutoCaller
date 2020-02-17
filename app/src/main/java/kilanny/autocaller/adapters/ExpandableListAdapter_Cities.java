@@ -3,7 +3,6 @@ package kilanny.autocaller.adapters;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Typeface;
-import android.support.v7.app.AlertDialog;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -110,7 +109,7 @@ public class ExpandableListAdapter_Cities extends BaseExpandableListAdapter {
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                new AlertDialog.Builder(_context)
+                new androidx.appcompat.app.AlertDialog.Builder(_context)
                         .setTitle(R.string.confirm_delete_group_title)
                         .setMessage(R.string.confirm_delete_group_body)
                         .setIcon(android.R.drawable.ic_dialog_alert)

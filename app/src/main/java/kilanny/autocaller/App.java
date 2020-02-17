@@ -1,7 +1,8 @@
 package kilanny.autocaller;
 
-import android.app.Application;
 import android.content.Context;
+
+import androidx.multidex.MultiDexApplication;
 
 import java.util.Date;
 
@@ -11,7 +12,7 @@ import kilanny.autocaller.di.AppModule;
 /**
  * Created by user on 11/4/2017.
  */
-public class App extends Application {
+public class App extends MultiDexApplication {
 
     private AppComponent appComponent;
 

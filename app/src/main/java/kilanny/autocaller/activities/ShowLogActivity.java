@@ -2,14 +2,13 @@ package kilanny.autocaller.activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.os.PersistableBundle;
-import android.support.annotation.Nullable;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ExpandableListView;
+
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -132,7 +131,7 @@ public class ShowLogActivity extends AppCompatActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_delete_log) {
-            new AlertDialog.Builder(this)
+            new androidx.appcompat.app.AlertDialog.Builder(this)
                     .setTitle(getString(R.string.delete_log_confirm_title))
                     .setMessage(getString(R.string.delete_log_confirm_body))
                     .setIcon(android.R.drawable.ic_dialog_alert)

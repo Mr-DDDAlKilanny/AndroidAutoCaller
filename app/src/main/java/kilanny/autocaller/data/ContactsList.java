@@ -1,11 +1,9 @@
 package kilanny.autocaller.data;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
+import androidx.annotation.NonNull;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 

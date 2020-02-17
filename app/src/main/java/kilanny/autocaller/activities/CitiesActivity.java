@@ -2,21 +2,16 @@ package kilanny.autocaller.activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.databinding.DataBindingUtil;
 import android.os.Bundle;
-import android.os.PersistableBundle;
-import android.support.annotation.Nullable;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v4.view.ViewCompat;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
-import android.view.animation.OvershootInterpolator;
 import android.widget.ExpandableListView;
+
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.databinding.DataBindingUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -100,7 +95,7 @@ public class CitiesActivity extends AppCompatActivity {
             @Override
             public boolean onChildClick(ExpandableListView parent, View v,
                                         final int groupPosition, final int childPosition, long id) {
-                new AlertDialog.Builder(CitiesActivity.this)
+                new androidx.appcompat.app.AlertDialog.Builder(CitiesActivity.this)
                         .setItems(R.array.city_item_options, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
@@ -145,7 +140,7 @@ public class CitiesActivity extends AppCompatActivity {
     }
 
     private void delete(final String country, final String city) {
-        new AlertDialog.Builder(CitiesActivity.this)
+        new androidx.appcompat.app.AlertDialog.Builder(CitiesActivity.this)
                 .setTitle(R.string.dlg_deleteCity_title)
                 .setIcon(android.R.drawable.ic_dialog_alert)
                 .setMessage(R.string.dlg_deleteCity_msg)
@@ -166,7 +161,7 @@ public class CitiesActivity extends AppCompatActivity {
                                         .append(cityContacts.get(number))
                                         .append("\n");
                             }
-                            new AlertDialog.Builder(CitiesActivity.this)
+                            new androidx.appcompat.app.AlertDialog.Builder(CitiesActivity.this)
                                     .setTitle(R.string.dlg_deleteCity_title)
                                     .setIcon(android.R.drawable.ic_dialog_alert)
                                     .setMessage(getString(R.string.dlg_deleteCity_failed_msg) + numbers)

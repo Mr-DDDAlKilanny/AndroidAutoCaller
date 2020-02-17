@@ -1,14 +1,8 @@
 package kilanny.autocaller.activities;
 
 import android.content.DialogInterface;
-import android.databinding.DataBindingUtil;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -17,6 +11,12 @@ import android.widget.ListView;
 import android.widget.NumberPicker;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.databinding.DataBindingUtil;
 
 import javax.inject.Inject;
 
@@ -119,7 +119,7 @@ public class CallProfilesActivity extends AppCompatActivity {
             numNoReplyTimeoutSeconds.setValue(callProfile.noReplyTimeoutSeconds);
             numKillCallAfterSeconds.setValue(callProfile.killCallAfterSeconds);
         }
-        new AlertDialog.Builder(this)
+        new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setView(view)
                 .setTitle(R.string.action_edit_profile)
                 .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
@@ -157,7 +157,7 @@ public class CallProfilesActivity extends AppCompatActivity {
                 }
             }
         }
-        new AlertDialog.Builder(this)
+        new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle(R.string.delete_item)
                 .setMessage(R.string.delete_item_message)
                 .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {

@@ -1,6 +1,7 @@
 package kilanny.autocaller.services;
 
 import android.Manifest;
+import android.app.AlarmManager;
 import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -30,9 +31,6 @@ import android.os.Messenger;
 import android.os.Process;
 import android.preference.PreferenceManager;
 import android.provider.CallLog;
-import android.support.annotation.Nullable;
-import android.support.annotation.RequiresApi;
-import android.support.v4.app.ActivityCompat;
 import android.telephony.TelephonyManager;
 import android.text.format.Time;
 import android.util.Log;
@@ -41,13 +39,13 @@ import android.view.WindowManager;
 import android.widget.RemoteViews;
 import android.widget.Toast;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.lang.reflect.InvocationTargetException;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.AlarmManagerCompat;
+import androidx.core.app.NotificationCompat;
+
 import java.lang.reflect.Method;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -99,13 +97,6 @@ public class AutoCallService extends Service {
     //private static final int NO_REPLY_TIMEOUT_SECONDS = 30 + WAIT_BETWEEN_CALLS_SECONDS;
     //private static final int KILL_CALL_AFTER_SECONDS = NO_REPLY_TIMEOUT_SECONDS + 35;
 
-    private static final Class<?>[] mSetForegroundSignature = new Class[]{
-            boolean.class};
-    private static final Class<?>[] mStartForegroundSignature = new Class[]{
-            int.class, Notification.class};
-    private static final Class<?>[] mStopForegroundSignature = new Class[]{
-            boolean.class};
-
     @Inject
     ListOfCallingLists listOfCallingLists;
     @Inject
@@ -113,13 +104,7 @@ public class AutoCallService extends Service {
     @Inject
     AutoCallProfileList profileList;
     private NotificationManager mNM;
-    private Notification.Builder notificationBuilder;
-    private Method mSetForeground;
-    private Method mStartForeground;
-    private Method mStopForeground;
-    private Object[] mSetForegroundArgs = new Object[1];
-    private Object[] mStartForegroundArgs = new Object[2];
-    private Object[] mStopForegroundArgs = new Object[1];
+    private NotificationCompat.Builder notificationBuilder;
     private AtomicBoolean canMakeCalls, isPaused;
     private Looper mServiceLooper;
     private ServiceHandler mServiceHandler;
@@ -157,6 +142,14 @@ public class AutoCallService extends Service {
         }
     }
 
+    private class AlarmBroadCastReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            pendingRecallRunnable.run();
+        }
+    }
+
     /**
      * Target we publish for clients to send messages to IncomingHandler.
      */
@@ -180,56 +173,6 @@ public class AutoCallService extends Service {
                 //_lastInstance.mServiceLooper.getThread().stop();
             }
         }
-    }
-
-    private void invokeMethod(Method method, Object[] args) {
-        try {
-            method.invoke(this, args);
-        } catch (InvocationTargetException e) {
-            // Should not happen.
-            Log.w("ApiDemos", "Unable to invoke method", e);
-        } catch (IllegalAccessException e) {
-            // Should not happen.
-            Log.w("ApiDemos", "Unable to invoke method", e);
-        }
-    }
-
-    /**
-     * This is a wrapper around the new startForeground method, using the older
-     * APIs if it is not available.
-     */
-    private void startForegroundCompat(int id, Notification notification) {
-        // If we have the new startForeground API, then use it.
-        if (mStartForeground != null) {
-            mStartForegroundArgs[0] = Integer.valueOf(id);
-            mStartForegroundArgs[1] = notification;
-            invokeMethod(mStartForeground, mStartForegroundArgs);
-            return;
-        }
-
-        // Fall back on the old API.
-        mSetForegroundArgs[0] = Boolean.TRUE;
-        invokeMethod(mSetForeground, mSetForegroundArgs);
-        mNM.notify(id, notification);
-    }
-
-    /**
-     * This is a wrapper around the new stopForeground method, using the older
-     * APIs if it is not available.
-     */
-    private void stopForegroundCompat(int id) {
-        // If we have the new stopForeground API, then use it.
-        if (mStopForeground != null) {
-            mStopForegroundArgs[0] = Boolean.TRUE;
-            invokeMethod(mStopForeground, mStopForegroundArgs);
-            return;
-        }
-
-        // Fall back on the old API.  Note to cancel BEFORE changing the
-        // foreground state, since we could be killed at that point.
-        mNM.cancel(id);
-        mSetForegroundArgs[0] = Boolean.FALSE;
-        invokeMethod(mSetForeground, mSetForegroundArgs);
     }
 
     public static class StopButtonListener extends BroadcastReceiver {
@@ -275,7 +218,7 @@ public class AutoCallService extends Service {
         String channelId = "kilanny.autocaller.AutoCallService";
         String channelName = "Auto Call Service";
         NotificationChannel channel = new NotificationChannel(channelId, channelName,
-                NotificationManager.IMPORTANCE_NONE);
+                NotificationManager.IMPORTANCE_HIGH);
         channel.setLightColor(Color.BLUE);
         channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         mNM.createNotificationChannel(channel);
@@ -300,30 +243,14 @@ public class AutoCallService extends Service {
         notificationRemoteViews.setOnClickPendingIntent(R.id.btnPauseCalls, pendingPauseIntent);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             String channelId = createNotificationChannel();
-            notificationBuilder = new Notification.Builder(this, channelId);
+            notificationBuilder = new NotificationCompat.Builder(this, channelId);
         } else {
-            notificationBuilder = new Notification.Builder(this);
+            notificationBuilder = new NotificationCompat.Builder(this);
         }
         notificationBuilder.setContentIntent(pendingIntent)
                 .setContent(notificationRemoteViews)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setSmallIcon(R.mipmap.ic_launcher);
-        try {
-            mStartForeground = getClass().getMethod("startForeground",
-                    mStartForegroundSignature);
-            mStopForeground = getClass().getMethod("stopForeground",
-                    mStopForegroundSignature);
-            return;
-        } catch (NoSuchMethodException e) {
-            // Running on an older platform.
-            mStartForeground = mStopForeground = null;
-        }
-        try {
-            mSetForeground = getClass().getMethod("setForeground",
-                    mSetForegroundSignature);
-        } catch (NoSuchMethodException e) {
-            throw new IllegalStateException(
-                    "OS doesn't have Service.startForeground OR Service.setForeground!");
-        }
     }
 
     @Override
@@ -338,7 +265,7 @@ public class AutoCallService extends Service {
         runOnUiThreadHandler = new Handler();
 
         initNotification();
-        startForegroundCompat(NOTIFICATION_ID, notificationBuilder.getNotification());
+        startForeground(NOTIFICATION_ID, notificationBuilder.getNotification());
 
         // Start up the thread running the service.  Note that we create a
         // separate thread because the service normally runs in the process's
@@ -442,7 +369,6 @@ public class AutoCallService extends Service {
     public void onDestroy() {
         super.onDestroy();
         // Make sure our notification is gone.
-        stopForegroundCompat(NOTIFICATION_ID);
         stopAutoCall(false);
     }
 
@@ -794,9 +720,17 @@ public class AutoCallService extends Service {
                                                                     String sTime[] = _minFajr.split(":");
                                                                     int nextTime = Integer.parseInt(sTime[0]) * 60 +
                                                                             Integer.parseInt(sTime[1]);
-                                                                    int delay = (nextTime - currentTime + 1) * 60 * 1000;
-                                                                    runOnUiThreadHandler.postDelayed(recallRunnable, delay);
+                                                                    long time = (nextTime - currentTime + 1) * 60 * 1000;
+                                                                    time += new Date().getTime();
+                                                                    AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                                                                    Intent intentToFire = new Intent(AutoCallService.this,
+                                                                            AlarmBroadCastReceiver.class);
                                                                     pendingRecallRunnable = recallRunnable;
+                                                                    AlarmManagerCompat.setExactAndAllowWhileIdle(alarmManager,
+                                                                            AlarmManager.RTC_WAKEUP, time,
+                                                                            PendingIntent.getBroadcast(AutoCallService.this,
+                                                                                    1, intentToFire, PendingIntent.FLAG_UPDATE_CURRENT));
+                                                                    Log.v("schNext", "Scheduled next alarm at " + new Date(time));
                                                                 }
                                                             })
                                                             .setNegativeButton(R.string.stop_calls, new DialogInterface.OnClickListener() {

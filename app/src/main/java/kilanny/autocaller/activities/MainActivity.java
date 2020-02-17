@@ -1,9 +1,7 @@
 package kilanny.autocaller.activities;
 
 import android.Manifest;
-import android.app.Dialog;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -13,6 +11,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
@@ -20,26 +19,25 @@ import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.provider.Settings;
-import android.support.annotation.Nullable;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -127,7 +125,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             }
         }
         if (neededPermission > 0) {
-            new AlertDialog.Builder(this)
+            new androidx.appcompat.app.AlertDialog.Builder(this)
                     .setTitle(getString(android.R.string.dialog_alert_title))
                     .setMessage(R.string.mission_permissions_msg)
                     .setCancelable(true)
@@ -139,7 +137,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         //already running?
         if (OsUtils.isServiceRunning(MainActivity.this,
                 AutoCallService.class)) {
-            new AlertDialog.Builder(MainActivity.this)
+            new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
                     .setTitle(R.string.already_started_msg_title)
                     .setMessage(R.string.already_started_msg_body)
                     .setIcon(android.R.drawable.ic_dialog_alert)
@@ -158,11 +156,20 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         }
         final Intent serviceIntent = new Intent(
                 MainActivity.this.getApplicationContext(), AutoCallService.class);
+        final Handler handler = new Handler();
         final Runnable start = new Runnable() {
             @Override
             public void run() {
-                startService(serviceIntent);
-                bindService(serviceIntent, MainActivity.this, 0);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                    startForegroundService(serviceIntent);
+                else
+                    startService(serviceIntent);
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        bindService(serviceIntent, MainActivity.this, 0);
+                    }
+                }, 3000);
                 lastServiceIntent = serviceIntent;
                 Snackbar.make(view, R.string.toast_starting_calls, Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
@@ -175,7 +182,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             serviceIntent.putExtra("callListId", callListId);
             SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
             if (pref.getBoolean("showIgnoreDlg", false)) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                androidx.appcompat.app.AlertDialog.Builder builder =
+                        new androidx.appcompat.app.AlertDialog.Builder(this);
                 builder.setTitle(R.string.do_you_want_to_ignore);
                 final String numbers[] = getListNumbers();
                 final ArrayList<Integer> selectedItems = new ArrayList<>();
@@ -192,9 +200,10 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         StringBuilder b = new StringBuilder();
-                        for (Integer idx : selectedItems)
-                            b.append(numbers[idx].replaceAll("[^0-9+]", ""))
-                                    .append(',');
+                        for (Integer idx : selectedItems) {
+                            String num = numbers[idx].substring(numbers[idx].lastIndexOf('('));
+                            b.append(num.substring(1, num.length() - 1)).append(',');
+                        }
                         if (b.length() > 0) {
                             b.deleteCharAt(b.length() - 1);
                             serviceIntent.putExtra("ignoreNumbers", b.toString());
@@ -303,7 +312,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 rowView.findViewById(R.id.delete_item).setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        new AlertDialog.Builder(MainActivity.this)
+                        new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
                         .setTitle(R.string.delete_item)
                         .setMessage(R.string.delete_item_message)
                         .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
@@ -378,7 +387,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 selectedItem = i;
         }
 
-        new AlertDialog.Builder(MainActivity.this)
+        new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
                 .setTitle(getString(R.string.dlg_select_city_title) + " - " + listItem.number)
                 .setSingleChoiceItems(cities, selectedItem, new DialogInterface.OnClickListener() {
                     @Override
@@ -416,7 +425,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 selectedItem = i;
         }
 
-        new AlertDialog.Builder(MainActivity.this)
+        new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
                 .setTitle(getString(R.string.dlg_select_profile_title) + " - " + listItem.number)
                 .setSingleChoiceItems(profiles, selectedItem, new DialogInterface.OnClickListener() {
                     @Override
@@ -472,7 +481,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         PERMISSION_RQUEST);
                 return false;
             } else if (!Settings.canDrawOverlays(this)) {
-                new AlertDialog.Builder(this)
+                new androidx.appcompat.app.AlertDialog.Builder(this)
                         .setTitle(R.string.dialog_title_systemalert_permission)
                         .setIcon(android.R.drawable.ic_dialog_alert)
                         .setMessage(R.string.dialog_msg_systemalert_permission)
@@ -548,7 +557,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             intent.putExtra("list", listOfCallingLists.idOf(list));
             startActivity(intent);
         } else if (id == R.id.action_info) {
-            new AlertDialog.Builder(MainActivity.this)
+            new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
                     .setTitle(R.string.app_name)
                     .setCancelable(true)
                     .setMessage(getString(R.string.help))

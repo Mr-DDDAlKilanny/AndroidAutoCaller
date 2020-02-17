@@ -8,7 +8,7 @@
             name="FabHandler"
             type="kilanny.autocaller.activities.CallListsActivity.CallListsFabHandler" />
     </data>
-    <android.support.design.widget.CoordinatorLayout
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:id="@+id/coordinatorLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -17,13 +17,13 @@
 
         <include layout="@layout/content_call_lists" />
 
-        <android.support.constraint.ConstraintLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/activity_main"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             tools:context="kilanny.autocaller.activities.CallListsActivity">
 
-            <android.support.design.widget.FloatingActionButton
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/addListFab"
                 app:fabSize="normal"
                 android:layout_width="wrap_content"
@@ -33,7 +33,7 @@
                 android:layout_margin="@dimen/fab_margin"
                 app:srcCompat="@android:drawable/ic_input_add" />
 
-            <android.support.design.widget.FloatingActionButton
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/baseFloatingActionButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -72,7 +72,7 @@
                     android:typeface="normal" />
 
 
-                <android.support.design.widget.FloatingActionButton
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
                     android:id="@+id/callProfilesFab"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -111,7 +111,7 @@
                     android:typeface="normal" />
 
 
-                <android.support.design.widget.FloatingActionButton
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
                     android:id="@+id/citiesFab"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -150,7 +150,7 @@
                     android:textColor="@android:color/white"
                     android:typeface="normal" />
 
-                <android.support.design.widget.FloatingActionButton
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
                     android:id="@+id/fabPrefs"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -162,7 +162,7 @@
                     app:srcCompat="@drawable/ic_settings_black_24dp" />
 
             </LinearLayout>
-        </android.support.constraint.ConstraintLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-    </android.support.design.widget.CoordinatorLayout>
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
 </layout>

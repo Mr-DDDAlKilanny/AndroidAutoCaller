@@ -1,18 +1,12 @@
 package kilanny.autocaller.activities;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.databinding.DataBindingUtil;
+import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.PersistableBundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v4.view.ViewCompat;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
@@ -25,9 +19,21 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.ViewCompat;
+import androidx.databinding.DataBindingUtil;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.snackbar.Snackbar;
+
+import java.util.Locale;
+
 import javax.inject.Inject;
 
 import kilanny.autocaller.App;
+import kilanny.autocaller.BuildConfig;
 import kilanny.autocaller.data.AutoCallSession;
 import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ListOfCallingLists;
@@ -36,7 +42,10 @@ import kilanny.autocaller.databinding.ActivityCallListsBinding;
 import kilanny.autocaller.di.ContextComponent;
 import kilanny.autocaller.di.ContextModule;
 import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.services.AutoCallService;
+import kilanny.autocaller.utils.OsUtils;
 import kilanny.autocaller.utils.ResultCallback;
+import kilanny.autocaller.utils.UpdateCheckUtil;
 
 public class CallListsActivity extends AppCompatActivity {
 
@@ -49,12 +58,14 @@ public class CallListsActivity extends AppCompatActivity {
     @Inject
     ListOfCallingLists list;
 
+    @SuppressLint("StaticFieldLeak")
     @Override
     protected void onStart() {
         super.onStart();
         //TODO: display a dialog if the list is empty to help user
-        if (AutoCallSession.getLastSession(this) != null) {
-            new android.support.v7.app.AlertDialog.Builder(this)
+        if (AutoCallSession.getLastSession(this) != null &&
+                !OsUtils.isServiceRunning(this, AutoCallService.class)) {
+            new androidx.appcompat.app.AlertDialog.Builder(this)
                     .setTitle(R.string.dlg_sessionFound_title)
                     .setMessage(R.string.dlg_sessionFound_msg)
                     .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
@@ -72,7 +83,60 @@ public class CallListsActivity extends AppCompatActivity {
                         }
                     })
                     .show();
+        } else if (UpdateCheckUtil.isConnected(this) !=
+                UpdateCheckUtil.CONNECTION_STATUS_NOT_CONNECTED) {
+            final String code = String.format(Locale.ENGLISH, "%d",
+                    BuildConfig.VERSION_CODE);
+            String s = UpdateCheckUtil.getLastCheckWhatsnew(this);
+            if (s != null) {
+                if (!s.split("#")[0].equals(code)) {
+                    showNewUpdateDlg();
+                    return;
+                }
+            }
+            if (UpdateCheckUtil.shouldCheckForUpdates(this)) {
+                new AsyncTask<Void, Void, String[]>() {
+
+                    @Override
+                    protected String[] doInBackground(Void... voids) {
+                        return UpdateCheckUtil.getLatestVersion();
+                    }
+
+                    @Override
+                    protected void onPostExecute(String[] strings) {
+                        super.onPostExecute(strings);
+                        if (strings != null) {
+                            if (!strings[0].equals(code)) {
+                                UpdateCheckUtil.setHasCheckedForUpdates(getApplicationContext(),
+                                        strings[0] + "#" + strings[2]);
+                                showNewUpdateDlg();
+                            } else {
+                                UpdateCheckUtil.setHasCheckedForUpdates(getApplicationContext(), null);
+                            }
+                        }
+                    }
+                }.execute();
+            }
         }
+    }
+
+    private void showNewUpdateDlg() {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setTitle("New Version")
+                .setMessage("There is a new version. Update now?\n" +
+                        UpdateCheckUtil.getLastCheckWhatsnew(getApplicationContext()))
+                .setCancelable(false)
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        String url = "https://sites.google.com/view/auto-caller/home";
+                        startActivity(new Intent(Intent.ACTION_VIEW,
+                                Uri.parse(url)));
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void inputString(String title, String initValue,
@@ -97,7 +161,7 @@ public class CallListsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_call_lists);
-        binding = DataBindingUtil.setContentView(this, R.layout.activity_call_lists);
+        binding = DataBindingUtil.<ActivityCallListsBinding>setContentView(this, R.layout.activity_call_lists);
         binding.setFabHandler(new CallListsFabHandler());
 
         getAnimations();

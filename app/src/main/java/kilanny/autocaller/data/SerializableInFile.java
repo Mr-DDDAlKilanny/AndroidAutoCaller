@@ -1,14 +1,17 @@
 package kilanny.autocaller.data;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
 
+import androidx.annotation.NonNull;
+
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.Date;
 
 /**
  * Created by Yasser on 11/18/2016.
@@ -46,6 +49,13 @@ public class SerializableInFile<T extends Serializable> implements Serializable 
         return saved;
     }
 
+    public Date getFileLastModifiedDate(Context context) {
+        File file = new File(context.getFilesDir(), fileName);
+        if (file.exists())
+            return new Date(file.lastModified());
+        return null;
+    }
+
     public String getFileName() {
         return fileName;
     }
@@ -56,6 +66,7 @@ public class SerializableInFile<T extends Serializable> implements Serializable 
 
     public void setData(T data) {
         this.data = data;
+        saved = false;
     }
 
     public void setData(T data, Context context) {

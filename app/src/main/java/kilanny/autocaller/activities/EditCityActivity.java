@@ -3,26 +3,27 @@ package kilanny.autocaller.activities;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.location.Address;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.AppCompatAutoCompleteTextView;
-import android.support.v7.widget.AppCompatButton;
-import android.support.v7.widget.AppCompatEditText;
-import android.support.v7.widget.AppCompatSpinner;
-import android.support.v7.widget.AppCompatTextView;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
-import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
-import com.google.android.gms.common.GooglePlayServicesRepairableException;
-import com.google.android.gms.location.places.Place;
-import com.google.android.gms.location.places.ui.PlacePicker;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatAutoCompleteTextView;
+import androidx.appcompat.widget.AppCompatButton;
+import androidx.appcompat.widget.AppCompatEditText;
+import androidx.appcompat.widget.AppCompatSpinner;
+import androidx.appcompat.widget.AppCompatTextView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import com.sucho.placepicker.AddressData;
+import com.sucho.placepicker.Constants;
+import com.sucho.placepicker.PlacePicker;
+
+import java.util.List;
 
 import javax.inject.Inject;
 
@@ -41,7 +42,6 @@ import kilanny.autocaller.utils.PrayTimes;
 
 public class EditCityActivity extends AppCompatActivity {
 
-    private static final int PLACE_PICKER_REQUEST = 1;
     private static final int PERMISSIONS_REQUEST = 2;
 
     private AppCompatAutoCompleteTextView countryAutoCompleteTextView;
@@ -50,7 +50,7 @@ public class EditCityActivity extends AppCompatActivity {
     private AppCompatTextView selectedPlaceTextView;
     private AppCompatButton btnPickLocation;
     private AppCompatSpinner prayerCalcMethod, asrPrayerCalcMethod;
-    private Place selectedPlace;
+    private AddressData selectedPlace;
     private City editCity;
 
     @Inject
@@ -118,18 +118,12 @@ public class EditCityActivity extends AppCompatActivity {
                     return;
                 }
                 PlacePicker.IntentBuilder builder = new PlacePicker.IntentBuilder();
-                if (editCity != null) {
-                    LatLng sydney = new LatLng(editCity.lat, editCity.lng);
-                    builder.setLatLngBounds(new LatLngBounds(sydney, sydney));
-                }
-                try {
-                    startActivityForResult(builder.build(EditCityActivity.this),
-                            PLACE_PICKER_REQUEST);
-                } catch (GooglePlayServicesRepairableException | GooglePlayServicesNotAvailableException e) {
-                    e.printStackTrace();
-                    Toast.makeText(EditCityActivity.this,
-                            "Service Unavailable", Toast.LENGTH_LONG).show();
-                }
+                if (editCity != null)
+                    builder.setLatLong(editCity.lat, editCity.lng);
+                else
+                    builder.setLatLong(21.4224779,39.8251832);
+                startActivityForResult(builder.build(EditCityActivity.this),
+                        Constants.PLACE_PICKER_REQUEST);
             }
         });
         ContextComponent contextComponent = DaggerContextComponent.builder()
@@ -235,9 +229,9 @@ public class EditCityActivity extends AppCompatActivity {
                 editCity.minMinuteAfterFajr = Integer.parseInt(minMinuteAfterFajr);
                 editCity.minMinutesBeforeSunrise = Integer.parseInt(minMinutesBeforeSunrise);
                 if (selectedPlace != null) {
-                    editCity.plateName = selectedPlace.getName().toString();
-                    editCity.lng = selectedPlace.getLatLng().longitude;
-                    editCity.lat = selectedPlace.getLatLng().latitude;
+                    editCity.plateName = tryGetName(selectedPlace);
+                    editCity.lng = selectedPlace.getLongitude();
+                    editCity.lat = selectedPlace.getLatitude();
                 }
                 editCity.putExtraInIntent(result);
             } else {
@@ -249,9 +243,9 @@ public class EditCityActivity extends AppCompatActivity {
                 c.timezone = Integer.parseInt(timezone);
                 c.minMinuteAfterFajr = Integer.parseInt(minMinuteAfterFajr);
                 c.minMinutesBeforeSunrise = Integer.parseInt(minMinutesBeforeSunrise);
-                c.plateName = selectedPlace.getName().toString();
-                c.lng = selectedPlace.getLatLng().longitude;
-                c.lat = selectedPlace.getLatLng().latitude;
+                c.plateName = tryGetName(selectedPlace);
+                c.lng = selectedPlace.getLongitude();
+                c.lat = selectedPlace.getLatitude();
                 c.putExtraInIntent(result);
             }
             setResult(RESULT_OK, result);
@@ -260,11 +254,34 @@ public class EditCityActivity extends AppCompatActivity {
     };
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == PLACE_PICKER_REQUEST) {
-            if (resultCode == RESULT_OK) {
-                selectedPlace = PlacePicker.getPlace(this, data);
-                selectedPlaceTextView.setText(selectedPlace.getName());
+        if (requestCode == Constants.PLACE_PICKER_REQUEST) {
+            if (resultCode == RESULT_OK && data != null) {
+                selectedPlace = data.getParcelableExtra(Constants.ADDRESS_INTENT);
+                if (selectedPlace != null)
+                    selectedPlaceTextView.setText(tryGetName(selectedPlace));
             }
         }
+    }
+
+    private String tryGetName(@NonNull AddressData data) {
+        List<Address> addressList = data.getAddressList();
+        String address = null;
+        if (addressList != null && addressList.size() > 0) {
+            Address a = addressList.get(0);
+            address = a.getThoroughfare();
+//            if (address == null)
+//                address = a.getSubLocality();
+//            if (address == null)
+//                address = a.getSubAdminArea();
+            if (address == null)
+                address = a.getLocality();
+            if (address == null)
+                address = a.getAdminArea();
+            if (address == null)
+                address = a.getCountryName();
+        }
+        if (address != null)
+            return address;
+        return getString(R.string.city);
     }
 }
