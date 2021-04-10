@@ -31,6 +31,7 @@ import kilanny.autocaller.databinding.ActivityCallProfilesBinding;
 import kilanny.autocaller.di.ContextComponent;
 import kilanny.autocaller.di.ContextModule;
 import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.utils.AnalyticsTrackers;
 
 public class CallProfilesActivity extends AppCompatActivity {
 
@@ -134,6 +135,8 @@ public class CallProfilesActivity extends AppCompatActivity {
                         editItem.killCallAfterSeconds = numKillCallAfterSeconds.getValue();
                         adapter.notifyDataSetChanged();
                         profileList.save(CallProfilesActivity.this);
+                        AnalyticsTrackers.getInstance(CallProfilesActivity.this)
+                                .logEditProfile(callProfile != null);
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
@@ -150,6 +153,8 @@ public class CallProfilesActivity extends AppCompatActivity {
             for (ContactsListItem item : list) {
                 if (item.callProfileId != null && item.callProfileId == callProfile.id) {
                     Toast.makeText(this, R.string.err_delete_item_in_use, Toast.LENGTH_LONG).show();
+                    AnalyticsTrackers.getInstance(CallProfilesActivity.this)
+                            .logDeleteProfile(false);
                     return;
                 }
             }
@@ -164,6 +169,8 @@ public class CallProfilesActivity extends AppCompatActivity {
                         profileList.remove(callProfile);
                         profileList.save(CallProfilesActivity.this);
                         adapter.notifyDataSetChanged();
+                        AnalyticsTrackers.getInstance(CallProfilesActivity.this)
+                                .logDeleteProfile(true);
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)

@@ -32,6 +32,7 @@ import kilanny.autocaller.databinding.ActivityCitiesBinding;
 import kilanny.autocaller.di.ContextComponent;
 import kilanny.autocaller.di.ContextModule;
 import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.utils.AnalyticsTrackers;
 
 public class CitiesActivity extends AppCompatActivity {
 
@@ -152,6 +153,8 @@ public class CitiesActivity extends AppCompatActivity {
                         if (cityContacts.size() == 0){
                             cities.remove(c);
                             cities.save(CitiesActivity.this);
+                            AnalyticsTrackers.getInstance(CitiesActivity.this)
+                                    .logDeleteCity(true);
                             bindList();
                         } else {
                             StringBuilder numbers = new StringBuilder("\n");
@@ -166,6 +169,8 @@ public class CitiesActivity extends AppCompatActivity {
                                     .setIcon(android.R.drawable.ic_dialog_alert)
                                     .setMessage(getString(R.string.dlg_deleteCity_failed_msg) + numbers)
                                     .show();
+                            AnalyticsTrackers.getInstance(CitiesActivity.this)
+                                    .logDeleteCity(false);
                         }
                     }
                 })

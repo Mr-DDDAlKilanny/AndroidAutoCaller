@@ -2,6 +2,7 @@ package kilanny.autocaller.activities;
 
 import android.Manifest;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -31,6 +32,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
@@ -38,11 +40,13 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.firebase.crashlytics.FirebaseCrashlytics;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashSet;
 
 import javax.inject.Inject;
@@ -57,10 +61,12 @@ import kilanny.autocaller.data.CityList;
 import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ContactsListItem;
 import kilanny.autocaller.data.ListOfCallingLists;
+import kilanny.autocaller.data.SerializableInFile;
 import kilanny.autocaller.di.ContextComponent;
 import kilanny.autocaller.di.ContextModule;
 import kilanny.autocaller.di.DaggerContextComponent;
 import kilanny.autocaller.services.AutoCallService;
+import kilanny.autocaller.utils.AnalyticsTrackers;
 import kilanny.autocaller.utils.OsUtils;
 import kilanny.autocaller.utils.TextUtils;
 
@@ -105,6 +111,62 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     public void onBackPressed() {
         super.onBackPressed();
         myFinish();
+    }
+
+    private static boolean shareAd(Context context) {
+        final SerializableInFile<Integer> response = new SerializableInFile<>(
+                context, "share__st", 0);
+        if (response.getData() == 0) {
+            dispalyShareAd(context, response);
+            return true;
+        } else if (response.getData() == -1) {
+            Date date = response.getFileLastModifiedDate(context);
+            if (date == null) {
+                response.setData(0, context);
+                dispalyShareAd(context, response);
+                return true;
+            }
+            long diffTime = new Date().getTime() - date.getTime();
+            long diffDays = diffTime / (1000 * 60 * 60 * 24);
+            if (diffDays > 30) {
+                dispalyShareAd(context, response);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void dispalyShareAd(final Context context, final SerializableInFile<Integer> response) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle(R.string.share_app);
+        builder.setIcon(android.R.drawable.ic_dialog_alert);
+        builder.setMessage(R.string.share_msg_dlg);
+        builder.setPositiveButton(R.string.share, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+                response.setData(1, context);
+                try {
+                    Intent sendIntent = new Intent();
+                    sendIntent.setAction(Intent.ACTION_SEND);
+                    sendIntent.putExtra(Intent.EXTRA_TEXT,
+                            context.getString(R.string.share_msg)
+                                    + "\n https://sites.google.com/view/auto-caller/home");
+                    sendIntent.setType("text/plain");
+                    context.startActivity(sendIntent);
+                } catch (Throwable th) {
+                    th.printStackTrace();
+                }
+            }
+        });
+        builder.setNegativeButton(R.string.not_now, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+                response.setData(-1, context);
+            }
+        });
+        builder.create().show();
     }
 
     private void fabClick(final View view) {
@@ -207,6 +269,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         if (b.length() > 0) {
                             b.deleteCharAt(b.length() - 1);
                             serviceIntent.putExtra("ignoreNumbers", b.toString());
+                            AnalyticsTrackers.getInstance(MainActivity.this).logIgnoredSomeNumbers();
                         }
                     }
                 });
@@ -278,8 +341,10 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             }
         });
         initListView();
-        if (continueLastSession)
+        if (continueLastSession) {
+            AnalyticsTrackers.getInstance(MainActivity.this).logContinueLastSession();
             fabClick(findViewById(R.id.fab));
+        }
     }
 
     private void initListView() {
@@ -307,6 +372,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         clickCount.setText(num + "");
                         listItem.callCount = num;
                         rebind();
+                        AnalyticsTrackers.getInstance(MainActivity.this).logEditContactCount();
                     }
                 });
                 rowView.findViewById(R.id.delete_item).setOnClickListener(new View.OnClickListener() {
@@ -324,6 +390,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                 //adapter.remove(listItem);
                                 list.remove(listItem);
                                 rebind();
+                                AnalyticsTrackers.getInstance(MainActivity.this).logDeleteContact();
                             }
                         })
                         .setNegativeButton(android.R.string.cancel, null)
@@ -341,6 +408,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                             listItem.index--;
                             adapter.getItem(position).index++;
                             rebind();
+                            AnalyticsTrackers.getInstance(MainActivity.this).logEditContactOrder();
                         }
                     }
                 });
@@ -355,6 +423,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                             listItem.index++;
                             adapter.getItem(position).index--;
                             rebind();
+                            AnalyticsTrackers.getInstance(MainActivity.this).logEditContactOrder();
                         }
                     }
                 });
@@ -410,6 +479,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         Toast.makeText(MainActivity.this,
                                 String.format(getString(R.string.dlg_select_city_msg), listItem.number),
                                 Toast.LENGTH_LONG).show();
+                        AnalyticsTrackers.getInstance(MainActivity.this).logEditContactCity();
                     }
                 })
                 .show();
@@ -448,6 +518,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         Toast.makeText(MainActivity.this,
                                 String.format(getString(R.string.dlg_select_city_msg), listItem.number),
                                 Toast.LENGTH_LONG).show();
+                        AnalyticsTrackers.getInstance(MainActivity.this).logEditContactProfile();
                     }
                 })
                 .show();
@@ -506,7 +577,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     @Override
     protected void onStart() {
         super.onStart();
-        checkPermissions();
+        if (checkPermissions()) {
+            shareAd(this);
+        }
         if (OsUtils.isServiceRunning(this, AutoCallService.class)) {
             if (lastServiceIntent != null)
                 bindService(lastServiceIntent, this, 0);
@@ -607,6 +680,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                 cursor.moveToNext();
                             }
                             rebind();
+                            AnalyticsTrackers.getInstance(MainActivity.this).logAddContact();
                         }
                     } catch (Exception e) {
                         e.printStackTrace();

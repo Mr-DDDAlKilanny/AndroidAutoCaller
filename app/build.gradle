@@ -1,4 +1,7 @@
 apply plugin: 'com.android.application'
+// Make sure to apply this plugin *after* the Android plugin
+apply plugin: 'com.google.gms.google-services'
+apply plugin: 'com.google.firebase.crashlytics'
 
 android {
     //compileOptions.incremental = false
@@ -43,9 +46,11 @@ dependencies {
     //implementation 'com.google.android.gms:play-services-location:15.0.0'
     implementation 'com.sucho:placepicker:1.0.0'
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.4.20'
+    implementation 'com.google.firebase:firebase-analytics:17.2.2'
+    implementation 'com.google.firebase:firebase-crashlytics:17.2.2'
 
     testImplementation 'junit:junit:4.12'
-    implementation 'com.google.dagger:dagger:2.18'
+    implementation 'com.google.dagger:dagger:2.27'
     annotationProcessor 'com.google.dagger:dagger-compiler:2.18'
     compileOnly 'javax.annotation:jsr250-api:1.0'
     implementation 'javax.inject:javax.inject:1'

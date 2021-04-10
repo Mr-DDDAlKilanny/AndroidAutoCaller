@@ -81,6 +81,7 @@ import kilanny.autocaller.data.ContactsListItem;
 import kilanny.autocaller.data.ListOfCallingLists;
 import kilanny.autocaller.activities.MainActivity;
 import kilanny.autocaller.R;
+import kilanny.autocaller.utils.AnalyticsTrackers;
 import kilanny.autocaller.utils.PrayTimes;
 import kilanny.autocaller.utils.TextUtils;
 
@@ -317,6 +318,8 @@ public class AutoCallService extends Service {
                 }
             }
         }, new IntentFilter(AutoCallPhoneStateListener.BROADCAST_ACTION));
+
+        AnalyticsTrackers.getInstance(this).logRingInit();
     }
 
     private void updateNotificationTextView(int txtView, String text) {
@@ -419,22 +422,26 @@ public class AutoCallService extends Service {
                 switch (Integer.parseInt(callType)) {
                     case 5: // rejected
                         Log.d("CALL_CHECK", "true: rejected (status 5)");
+                        AnalyticsTrackers.getInstance(this).logRingContactAnsweredRejected();
                         return true;
                     case CallLog.Calls.OUTGOING_TYPE: {
                         AutoCallProfile profile = profileList.findById(callProfileId);
                         if (Integer.parseInt(callDuration) > 0 || diffSeconds < profile.noReplyTimeoutSeconds) {
                             Log.d("CALL_CHECK", "true: callDuration = " + callDuration
                                     + ", diffSeconds = " + diffSeconds);
+                            AnalyticsTrackers.getInstance(this).logRingContactAnsweredRejected();
                             return true;
                         }
                         break;
                     }
                     default:
                         Log.d("CALL_CHECK", "false: unknown type: " + callType);
+                        AnalyticsTrackers.getInstance(this).logRingContactNoAnswer();
                         return false;
                 }
             }
             Log.d("CALL_CHECK", "false: no reply");
+            AnalyticsTrackers.getInstance(this).logRingContactNoAnswer();
             return false;
         } finally {
             cursor.close();
@@ -790,6 +797,8 @@ public class AutoCallService extends Service {
                                                                 }
                                                             }).create();
                                                 } else {
+                                                    AnalyticsTrackers.getInstance(AutoCallService.this)
+                                                            .logRingMaxCountList();
                                                     dlg = new AlertDialog.Builder(getApplicationContext())
                                                             .setTitle(R.string.some_not_answered_title)
                                                             .setCancelable(false)
@@ -800,6 +809,8 @@ public class AutoCallService extends Service {
                                                                 public void onClick(DialogInterface dialog, int whichButton) {
                                                                     stopFinishRingtone();
                                                                     recallRunnable.run();
+                                                                    AnalyticsTrackers.getInstance(AutoCallService.this)
+                                                                            .logRingRepeatList();
                                                                 }
                                                             })
                                                             .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
@@ -905,6 +916,7 @@ public class AutoCallService extends Service {
         currentSession = null;
         callSession = null;
         cachedCitiesTimes.clear();
+        AnalyticsTrackers.getInstance(this).logRingStop();
 
         if (shouldStopSelf) {
             myStopSelf();
@@ -919,6 +931,7 @@ public class AutoCallService extends Service {
         autoCall.result = result;
         currentSession.add(autoCall);
         list.save(this);
+        AnalyticsTrackers.getInstance(this).logRingIgnoredContactBeforeFajrAfterSunrise();
     }
 
     private void addSessionCall(Date date, String name, String number) {
@@ -959,6 +972,7 @@ public class AutoCallService extends Service {
         callIntent.setData(Uri.parse("tel:" + number));
         startActivity(callIntent);
         addSessionCall(new Date(), name, number);
+        AnalyticsTrackers.getInstance(this).logRingContact();
     }
 
     /**
@@ -1079,7 +1093,9 @@ public class AutoCallService extends Service {
                     dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
                 }
                 dlg.show();
+                AnalyticsTrackers.getInstance(AutoCallService.this).logRingCancelBeforeAfterTime();
             } else {
+                AnalyticsTrackers.getInstance(AutoCallService.this).logRingStarted();
                 ContactsListItem item = list.get(callSession.getListCurrentCallItemIdx());
                 Integer profile = item.callProfileId;
                 if (profile == null)

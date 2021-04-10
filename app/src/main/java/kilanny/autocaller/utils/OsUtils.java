@@ -3,12 +3,16 @@ package kilanny.autocaller.utils;
 import android.Manifest;
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
+import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 
@@ -53,6 +57,29 @@ public final class OsUtils {
         callIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         callIntent.setData(Uri.parse("tel:" + number));
         context.startActivity(callIntent);
+    }
+
+    public static void openUrlInChromeOrDefault(Context context, String urlString) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(urlString));
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.setPackage("com.android.chrome");
+        try {
+            context.startActivity(intent);
+        } catch (ActivityNotFoundException ex) {
+            // Chrome browser presumably not installed so allow user to choose instead
+            intent.setPackage(null);
+            try {
+                context.startActivity(intent);
+            } catch (ActivityNotFoundException ex2) {
+                ClipboardManager clipboardManager = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboardManager != null) {
+                    clipboardManager.setPrimaryClip(ClipData.newPlainText("الرنان الآلي", urlString));
+                    Toast.makeText(context,
+                            "لم يتم العثور على متصفح في جهازك. تم نسخ الرابط اذهب للمتصفح واعمل له لصق",
+                            Toast.LENGTH_LONG).show();
+                }
+            }
+        }
     }
 
     private OsUtils() {}

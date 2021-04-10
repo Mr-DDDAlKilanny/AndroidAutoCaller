@@ -29,6 +29,7 @@ import kilanny.autocaller.R;
 import kilanny.autocaller.di.ContextComponent;
 import kilanny.autocaller.di.ContextModule;
 import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.utils.AnalyticsTrackers;
 
 public class ShowLogActivity extends AppCompatActivity {
 
@@ -143,6 +144,8 @@ public class ShowLogActivity extends AppCompatActivity {
                             listDataHeader.clear();
                             listDataChild.clear();
                             listAdapter.notifyDataSetChanged();
+                            AnalyticsTrackers.getInstance(ShowLogActivity.this)
+                                    .logClearLog();
                         }})
                     .setNegativeButton(android.R.string.no, null).show();
             return true;

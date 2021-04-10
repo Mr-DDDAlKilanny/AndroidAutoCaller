@@ -146,5 +146,9 @@
     <string name="do_you_want_to_ignore">هل تريد تجاهل بعض الأرقام من الرن هذه المرة؟</string>
     <string name="pref_show_ignore_title">عرض مربع تجاهل الأرقام</string>
     <string name="pref_show_ignore_summary">عرض مربع حوار لاختيار بعض الأرقام لعدم الرن عليها قبل بدء المكالمات الآلية</string>
-    <string name="hangup_not_working_android_9">تنبيه: ميزة إنهاء المكالمة بعد مدة غير متوفرة على أندرويد باي 9</string>
+    <string name="share_app">مشاركة التطبيقٍ</string>
+    <string name="share_msg_dlg">شكرا لاستخدامك تطبيق الرنان الآلي!\nالرجاء مشاركة التطبيق ابتغاء الثواب من الله!</string>
+    <string name="not_now">ليس الآن</string>
+    <string name="share">مشاركة</string>
+    <string name="share_msg">أوقظ معارفك لصلاة الفجر بواسطة الرن على رقم هاتفهم بشكل متكرر حتى يقوموا برفض المكالمة! حمل التطبيق الآن فهو مجاني وبدون أي إعلانات</string>
 </resources>

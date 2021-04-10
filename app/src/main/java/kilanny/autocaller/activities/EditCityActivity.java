@@ -34,6 +34,7 @@ import kilanny.autocaller.data.CityList;
 import kilanny.autocaller.di.ContextComponent;
 import kilanny.autocaller.di.ContextModule;
 import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.utils.AnalyticsTrackers;
 import kilanny.autocaller.utils.PrayTimes;
 
 /**
@@ -234,6 +235,7 @@ public class EditCityActivity extends AppCompatActivity {
                     editCity.lat = selectedPlace.getLatitude();
                 }
                 editCity.putExtraInIntent(result);
+                AnalyticsTrackers.getInstance(EditCityActivity.this).logEditCity();
             } else {
                 City c = cities.addNewCity();
                 c.prayerCalcMethod = prayerTimeCalcMethod;
@@ -247,18 +249,23 @@ public class EditCityActivity extends AppCompatActivity {
                 c.lng = selectedPlace.getLongitude();
                 c.lat = selectedPlace.getLatitude();
                 c.putExtraInIntent(result);
+                AnalyticsTrackers.getInstance(EditCityActivity.this).logAddCity();
             }
             setResult(RESULT_OK, result);
             finish();
         }
     };
 
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == Constants.PLACE_PICKER_REQUEST) {
             if (resultCode == RESULT_OK && data != null) {
                 selectedPlace = data.getParcelableExtra(Constants.ADDRESS_INTENT);
-                if (selectedPlace != null)
+                if (selectedPlace != null) {
                     selectedPlaceTextView.setText(tryGetName(selectedPlace));
+                    AnalyticsTrackers.getInstance(EditCityActivity.this).logPickedLocation();
+                }
             }
         }
     }

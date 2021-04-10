@@ -43,6 +43,7 @@ import kilanny.autocaller.di.ContextComponent;
 import kilanny.autocaller.di.ContextModule;
 import kilanny.autocaller.di.DaggerContextComponent;
 import kilanny.autocaller.services.AutoCallService;
+import kilanny.autocaller.utils.AnalyticsTrackers;
 import kilanny.autocaller.utils.OsUtils;
 import kilanny.autocaller.utils.ResultCallback;
 import kilanny.autocaller.utils.UpdateCheckUtil;
@@ -194,6 +195,7 @@ public class CallListsActivity extends AppCompatActivity {
                                 Snackbar.LENGTH_LONG)
                                 //.setAction("Action", null)
                                 .show();
+                        AnalyticsTrackers.getInstance(CallListsActivity.this).logAddList();
                     }
                 });
             }
@@ -269,6 +271,8 @@ public class CallListsActivity extends AppCompatActivity {
                                         item.setName(result);
                                         list.save(b.getContext());
                                         adapter.notifyDataSetChanged();
+                                        AnalyticsTrackers.getInstance(CallListsActivity.this)
+                                                .logEditList();
                                     }
                                 });
                                 break;
@@ -284,6 +288,8 @@ public class CallListsActivity extends AppCompatActivity {
                                         list.save(b.getContext());
                                         adapter.remove(item);
                                         adapter.notifyDataSetChanged();
+                                        AnalyticsTrackers.getInstance(CallListsActivity.this)
+                                                .logDeleteList();
                                     }
                                 });
                                 b1.setNegativeButton(getString(android.R.string.cancel), null);

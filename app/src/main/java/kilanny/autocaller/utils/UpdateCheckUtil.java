@@ -59,14 +59,21 @@ public final class UpdateCheckUtil {
 
     public static String[] getLatestVersion() {
         try {
-            URL url = new URL("https://us-central1-alien-bruin-242913.cloudfunctions.net/getLatestVersion");
+            URL url = new URL("https://firestore.googleapis.com/v1/projects/alien-bruin-242913/databases/(default)/documents/versions?pageSize=1&orderBy=createdOn%20desc");
             URLConnection conn = url.openConnection();
             BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            JSONObject jsonObject = new JSONObject(reader.readLine());
-            String versionName = jsonObject.getString("name");
+            StringBuilder builder = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                builder.append(line).append('\n');
+            }
+            JSONObject jsonObject = new JSONObject(builder.toString());
+            jsonObject = jsonObject.getJSONArray("documents").getJSONObject(0)
+                    .getJSONObject("fields");
+            String versionName = jsonObject.getJSONObject("name").getString("stringValue");
             String versionCode = String.format(Locale.ENGLISH, "%d",
-                    jsonObject.getInt("code"));
-            String whatsnew = jsonObject.getString("whatsnew");
+                    jsonObject.getJSONObject("code").getInt("integerValue"));
+            String whatsnew = jsonObject.getJSONObject("whatsnew").getString("stringValue");
             return new String[]{versionCode, versionName, whatsnew};
         } catch (Exception e) {
             e.printStackTrace();
