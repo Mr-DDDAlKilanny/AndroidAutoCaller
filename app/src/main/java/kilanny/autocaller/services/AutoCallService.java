@@ -28,9 +28,11 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
+import android.os.PowerManager;
 import android.os.Process;
 import android.preference.PreferenceManager;
 import android.provider.CallLog;
+import android.telecom.TelecomManager;
 import android.telephony.TelephonyManager;
 import android.text.format.Time;
 import android.util.Log;
@@ -125,6 +127,7 @@ public class AutoCallService extends Service {
     private ContactsList list;
     private Timer autoHangupTimer, phoneAppCrashNotificationTimer;
     static MediaPlayer mediaPlayer;
+    private PowerManager.WakeLock mWakeLock;
 
     /**
      * Handler of incoming messages from clients.
@@ -157,6 +160,7 @@ public class AutoCallService extends Service {
 
     private static void myStopSelf() {
         if (_lastInstance != null) {
+            _lastInstance.releaseWakeLock();
             if (_lastInstance.phoneStatusChangedBroadcastReceiver != null) {
                 _lastInstance.unregisterReceiver(_lastInstance.phoneStatusChangedBroadcastReceiver);
                 _lastInstance.phoneStatusChangedBroadcastReceiver = null;
@@ -171,6 +175,7 @@ public class AutoCallService extends Service {
                 _lastInstance.stopSelf(tmp);
                 //_lastInstance.mServiceLooper.quit();
                 //_lastInstance.mServiceLooper.getThread().stop();
+                _lastInstance = null;
             }
         }
     }
@@ -256,6 +261,9 @@ public class AutoCallService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, getClass().getName());
+        mWakeLock.setReferenceCounted(false);
         ContextComponent contextComponent = DaggerContextComponent.builder()
                 .appComponent(App.get(this).getComponent())
                 .contextModule(new ContextModule(this))
@@ -553,6 +561,24 @@ public class AutoCallService extends Service {
         }
     }
 
+    private void aquireWakeLock() {
+        try {
+            mWakeLock.acquire(60*60*1000L /*60 minutes*/);
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
+    private void releaseWakeLock() {
+        try {
+            if (mWakeLock.isHeld()) {
+                mWakeLock.release();
+            }
+        } catch (Throwable th) {
+            th.printStackTrace();
+        }
+    }
+
     /**
      * TODO: fix: timers in service not working. Use AlarmService instead
      */
@@ -579,8 +605,29 @@ public class AutoCallService extends Service {
                 //App application = App.get(AutoCallService.this);
                 //callSession.addNumberToRejectersList(application.lastCallNumber);
                 Log.d("runKillAutoCallTask", "Call period timed out. Terminating...");
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P)
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
                     terminateActiveCall();
+                } else {
+                    TelecomManager mgr = (TelecomManager) getSystemService(TELECOM_SERVICE);
+                    lastCallTerminatedByApp = mgr.endCall();
+                    if (lastCallTerminatedByApp) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(AutoCallService.this, R.string.automatically_terminated_call,
+                                        Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    } else {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(AutoCallService.this, R.string.automatic_terminate_call_failed,
+                                        Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    }
+                }
             }
         }, afterSeconds * 1000);
     }
@@ -682,6 +729,7 @@ public class AutoCallService extends Service {
                                             callSession.setListCurrentCallItemIdx(tmpIdx);
                                             currentSession.add(new AutoCallLog.AutoCallRetry());
                                             list.save(AutoCallService.this);
+                                            aquireWakeLock();
                                             nextCall();
                                         }
                                     };
@@ -696,6 +744,7 @@ public class AutoCallService extends Service {
                                             @Override
                                             public void run() {
                                                 AlertDialog dlg;
+                                                releaseWakeLock();
                                                 if (_allBeforeFajr) {
                                                     dlg = new AlertDialog.Builder(getApplicationContext())
                                                             .setTitle(R.string.some_not_answered_title)
@@ -991,6 +1040,7 @@ public class AutoCallService extends Service {
         }
         @Override
         public void handleMessage(Message msg) {
+            aquireWakeLock();
             callSession.setStarted(true);
             ContactsListGroupList groups = list.getGroups();
 

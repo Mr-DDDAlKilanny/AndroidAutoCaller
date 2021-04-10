@@ -257,7 +257,7 @@ public class CallListsActivity extends AppCompatActivity {
                             case 0:
                                 break;
                             case 1:
-                                inputString(options[1], item.getName(), new ResultCallback<String>() {
+                                inputString(options[0], item.getName(), new ResultCallback<String>() {
                                     @Override
                                     public void onResult(String result) {
                                         if (result.trim().length() == 0) {
@@ -274,7 +274,7 @@ public class CallListsActivity extends AppCompatActivity {
                                 break;
                             case 2: {
                                 AlertDialog.Builder b1 = new AlertDialog.Builder(b.getContext());
-                                b1.setTitle(options[2]);
+                                b1.setTitle(options[1]);
                                 b1.setMessage(getString(R.string.delete_list_confirm_body));
                                 b1.setCancelable(true);
                                 b1.setPositiveButton(getString(android.R.string.yes), new DialogInterface.OnClickListener() {

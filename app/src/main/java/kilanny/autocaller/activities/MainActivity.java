@@ -470,6 +470,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                     Manifest.permission.PROCESS_OUTGOING_CALLS
                     //,Manifest.permission.SYSTEM_ALERT_WINDOW
             ));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                neededPermissions.add(Manifest.permission.ANSWER_PHONE_CALLS);
+            }
             for (int i = neededPermissions.size() - 1; i >= 0; --i) {
                 if (ActivityCompat.checkSelfPermission(this, neededPermissions.get(i))
                         == PackageManager.PERMISSION_GRANTED) {
