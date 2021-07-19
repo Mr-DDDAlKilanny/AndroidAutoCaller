@@ -1,7 +1,5 @@
 package kilanny.autocaller.activities;
 
-import android.content.DialogInterface;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,35 +11,25 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.databinding.DataBindingUtil;
 
-import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
-import kilanny.autocaller.App;
 import kilanny.autocaller.R;
 import kilanny.autocaller.data.AutoCallProfile;
-import kilanny.autocaller.data.AutoCallProfileList;
-import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ContactsListItem;
-import kilanny.autocaller.data.ListOfCallingLists;
 import kilanny.autocaller.databinding.ActivityCallProfilesBinding;
-import kilanny.autocaller.di.ContextComponent;
-import kilanny.autocaller.di.ContextModule;
-import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.db.AppDb;
 import kilanny.autocaller.utils.AnalyticsTrackers;
 
 public class CallProfilesActivity extends AppCompatActivity {
 
     private ActivityCallProfilesBinding binding;
     private ArrayAdapter<AutoCallProfile> adapter;
-
-    @Inject
-    AutoCallProfileList profileList;
-    @Inject
-    ListOfCallingLists listOfCallingLists;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,25 +38,15 @@ public class CallProfilesActivity extends AppCompatActivity {
         binding = DataBindingUtil.setContentView(this, R.layout.activity_call_profiles);
         binding.setFabHandler(new CallProfilesActivityFabHandler());
 
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        ContextComponent contextComponent = DaggerContextComponent.builder()
-                .appComponent(App.get(this).getComponent())
-                .contextModule(new ContextModule(this))
-                .build();
-        contextComponent.inject(this);
-    }
-
-    @Override
-    protected void onPostCreate(@Nullable Bundle savedInstanceState) {
-        super.onPostCreate(savedInstanceState);
-
         initListView();
     }
 
     private void initListView() {
-        adapter = new ArrayAdapter<AutoCallProfile>(this, R.layout.call_profile_list_item, profileList) {
+        ArrayList<AutoCallProfile> list = new ArrayList<>(Arrays.asList(
+                AppDb.getInstance(this).callProfileDao().getAll()));
+        adapter = new ArrayAdapter<AutoCallProfile>(this, R.layout.call_profile_list_item, list) {
             @NonNull
             @Override
             public View getView(int position, View convertView, @NonNull ViewGroup parent) {
@@ -79,25 +57,14 @@ public class CallProfilesActivity extends AppCompatActivity {
                 else
                     rowView = convertView;
                 final AutoCallProfile item = adapter.getItem(position);
-                TextView txtProfileName = (TextView) rowView
-                        .findViewById(R.id.textViewProfileName);
+                TextView txtProfileName = rowView.findViewById(R.id.textViewProfileName);
                 txtProfileName.setText(item.name);
-                rowView.findViewById(R.id.btnEditItem).setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        editProfile(item);
-                    }
-                });
-                rowView.findViewById(R.id.btnDeleteItem).setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        deleteProfile(item);
-                    }
-                });
+                rowView.findViewById(R.id.btnEditItem).setOnClickListener(v -> editProfile(item));
+                rowView.findViewById(R.id.btnDeleteItem).setOnClickListener(v -> deleteProfile(item));
                 return rowView;
             }
         };
-        ListView listView = (ListView) findViewById(R.id.listViewProfiles);
+        ListView listView = findViewById(R.id.listViewProfiles);
         listView.setAdapter(adapter);
         listView.setItemsCanFocus(false);
     }
@@ -120,24 +87,24 @@ public class CallProfilesActivity extends AppCompatActivity {
         new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setView(view)
                 .setTitle(R.string.action_edit_profile)
-                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        AutoCallProfile editItem;
-                        if (callProfile != null) {
-                            editItem = callProfile;
-                        } else {
-                            editItem = profileList.addNewProfile();
-                            adapter.add(editItem);
-                        }
-                        editItem.name = txtProfileName.getText().toString();
-                        editItem.noReplyTimeoutSeconds = numNoReplyTimeoutSeconds.getValue();
-                        editItem.killCallAfterSeconds = numKillCallAfterSeconds.getValue();
-                        adapter.notifyDataSetChanged();
-                        profileList.save(CallProfilesActivity.this);
-                        AnalyticsTrackers.getInstance(CallProfilesActivity.this)
-                                .logEditProfile(callProfile != null);
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    AutoCallProfile editItem;
+                    if (callProfile != null) {
+                        editItem = callProfile;
+                    } else {
+                        editItem = new AutoCallProfile();
+                        adapter.add(editItem);
                     }
+                    editItem.name = txtProfileName.getText().toString();
+                    editItem.noReplyTimeoutSeconds = numNoReplyTimeoutSeconds.getValue();
+                    editItem.killCallAfterSeconds = numKillCallAfterSeconds.getValue();
+                    if (editItem.id == 0)
+                        editItem.id = (int) AppDb.getInstance(this).callProfileDao().insert(editItem);
+                    else
+                        AppDb.getInstance(this).callProfileDao().update(editItem);
+                    adapter.notifyDataSetChanged();
+                    AnalyticsTrackers.getInstance(CallProfilesActivity.this)
+                            .logEditProfile(callProfile != null);
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
@@ -148,30 +115,25 @@ public class CallProfilesActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.err_delete_default_item, Toast.LENGTH_LONG).show();
             return;
         }
-        for (int i = 0; i < listOfCallingLists.size(); ++i) {
-            ContactsList list = listOfCallingLists.get(i);
-            for (ContactsListItem item : list) {
-                if (item.callProfileId != null && item.callProfileId == callProfile.id) {
-                    Toast.makeText(this, R.string.err_delete_item_in_use, Toast.LENGTH_LONG).show();
-                    AnalyticsTrackers.getInstance(CallProfilesActivity.this)
-                            .logDeleteProfile(false);
-                    return;
-                }
-            }
+        ContactsListItem[] contacts = AppDb.getInstance(this).contactDao().getByProfileId(callProfile.id);
+        if (contacts.length > 0) {
+            String s = Arrays.stream(contacts).map(c -> c.name + " " + c.number + "\n")
+                    .collect(Collectors.joining()).trim();
+            Toast.makeText(this, getString(R.string.err_delete_item_in_use) + "\n" + s,
+                    Toast.LENGTH_LONG).show();
+            AnalyticsTrackers.getInstance(CallProfilesActivity.this)
+                    .logDeleteProfile(false);
+            return;
         }
         new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle(R.string.delete_item)
                 .setMessage(R.string.delete_item_message)
-                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        adapter.remove(callProfile);
-                        profileList.remove(callProfile);
-                        profileList.save(CallProfilesActivity.this);
-                        adapter.notifyDataSetChanged();
-                        AnalyticsTrackers.getInstance(CallProfilesActivity.this)
-                                .logDeleteProfile(true);
-                    }
+                .setPositiveButton(android.R.string.yes, (dialog, which) -> {
+                    adapter.remove(callProfile);
+                    AppDb.getInstance(this).callProfileDao().delete(callProfile);
+                    adapter.notifyDataSetChanged();
+                    AnalyticsTrackers.getInstance(CallProfilesActivity.this)
+                            .logDeleteProfile(true);
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();

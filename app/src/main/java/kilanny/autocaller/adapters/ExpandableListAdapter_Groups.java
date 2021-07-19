@@ -17,6 +17,7 @@ import kilanny.autocaller.R;
 import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ContactsListGroup;
 import kilanny.autocaller.data.ContactsListGroupList;
+import kilanny.autocaller.db.AppDb;
 
 public class ExpandableListAdapter_Groups extends BaseExpandableListAdapter {
 
@@ -24,15 +25,13 @@ public class ExpandableListAdapter_Groups extends BaseExpandableListAdapter {
     private List<String> _listDataHeader; // header titles
     // child data in format of header title, child title
     private HashMap<String, List<String>> _listDataChild;
-    private final ContactsList contactsList;
-    private final ContactsListGroupList list;
+    private long contactsListId;
 
     public ExpandableListAdapter_Groups(Context context, List<String> listDataHeader,
                                         HashMap<String, List<String>> listChildData,
-                                        ContactsList contactsList) {
+                                        long contactsListId) {
         this._context = context;
-        this.contactsList = contactsList;
-        this.list = contactsList.getGroups();
+        this.contactsListId = contactsListId;
         this._listDataHeader = listDataHeader;
         this._listDataChild = listChildData;
     }
@@ -96,41 +95,28 @@ public class ExpandableListAdapter_Groups extends BaseExpandableListAdapter {
             convertView = infalInflater.inflate(R.layout.contactgroup_group, null);
         }
 
-        TextView lblListHeader = (TextView) convertView
-                .findViewById(R.id.lblListHeader_1);
+        TextView lblListHeader = convertView.findViewById(R.id.lblListHeader_1);
         lblListHeader.setTypeface(null, Typeface.BOLD);
         lblListHeader.setText(headerTitle);
 
-        Button btn = (Button) convertView.findViewById(R.id.btnDeleteGroup);
-        btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                new androidx.appcompat.app.AlertDialog.Builder(_context)
-                        .setTitle(R.string.confirm_delete_group_title)
-                        .setMessage(R.string.confirm_delete_group_body)
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-
-                            public void onClick(DialogInterface dialog, int whichButton) {
-                                _listDataChild.remove(headerTitle);
-                                _listDataHeader.remove(headerTitle);
-                                ContactsListGroup remove = null;
-                                for (ContactsListGroup g : list) {
-                                    if (g.name.equals(headerTitle)) {
-                                        remove = g;
-                                        break;
-                                    }
-                                }
-                                if (remove != null) {
-                                    list.remove(remove);
-                                    contactsList.save(_context);
-                                }
-                                notifyDataSetChanged();
-                            }})
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show();
-            }
-        });
+        Button btn = convertView.findViewById(R.id.btnDeleteGroup);
+        btn.setOnClickListener(v -> new androidx.appcompat.app.AlertDialog.Builder(_context)
+                .setTitle(R.string.confirm_delete_group_title)
+                .setMessage(R.string.confirm_delete_group_body)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton(android.R.string.ok, (dialog, whichButton) -> {
+                    _listDataChild.remove(headerTitle);
+                    _listDataHeader.remove(headerTitle);
+                    ContactsListGroup remove = AppDb.getInstance(_context).contactGroupDao()
+                            .findByListIdAndName(this.contactsListId, headerTitle);
+                    if (remove != null) {
+                        AppDb.getInstance(_context).contactInGroupDao().deleteByGroupId(remove.id);
+                        AppDb.getInstance(_context).contactGroupDao().delete(remove);
+                    }
+                    notifyDataSetChanged();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show());
 
         return convertView;
     }

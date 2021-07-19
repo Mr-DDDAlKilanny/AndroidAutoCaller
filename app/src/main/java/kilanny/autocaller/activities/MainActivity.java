@@ -3,7 +3,6 @@ package kilanny.autocaller.activities;
 import android.Manifest;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
@@ -14,10 +13,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
-import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.util.Log;
@@ -31,40 +30,31 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.preference.PreferenceManager;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
-import com.google.firebase.crashlytics.FirebaseCrashlytics;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Locale;
 
-import javax.inject.Inject;
-
-import kilanny.autocaller.App;
 import kilanny.autocaller.R;
 import kilanny.autocaller.data.AutoCallProfile;
-import kilanny.autocaller.data.AutoCallProfileList;
 import kilanny.autocaller.data.AutoCallSession;
 import kilanny.autocaller.data.City;
-import kilanny.autocaller.data.CityList;
-import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ContactsListItem;
-import kilanny.autocaller.data.ListOfCallingLists;
 import kilanny.autocaller.data.SerializableInFile;
-import kilanny.autocaller.di.ContextComponent;
-import kilanny.autocaller.di.ContextModule;
-import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.db.AppDb;
+import kilanny.autocaller.db.ContactInList;
+import kilanny.autocaller.db.ContactListItem2;
 import kilanny.autocaller.services.AutoCallService;
 import kilanny.autocaller.utils.AnalyticsTrackers;
 import kilanny.autocaller.utils.OsUtils;
@@ -80,18 +70,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private boolean isServiceBound = false;
 
     private static Intent lastServiceIntent;
-    private ArrayAdapter<ContactsListItem> adapter;
-    private int callListId;
-    private ContactsList list;
-    @Inject ListOfCallingLists listOfCallingLists;
-    @Inject CityList cityList;
-    @Inject AutoCallProfileList callProfileList;
+    private ArrayAdapter<ContactListItem2> adapter;
+    private long callListId;
     private boolean continueLastSession = false;
-
-    private void rebind() {
-        list.save(this);
-        adapter.notifyDataSetChanged();
-    }
 
     @Override
     protected void onDestroy() {
@@ -141,30 +122,24 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         builder.setTitle(R.string.share_app);
         builder.setIcon(android.R.drawable.ic_dialog_alert);
         builder.setMessage(R.string.share_msg_dlg);
-        builder.setPositiveButton(R.string.share, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.cancel();
-                response.setData(1, context);
-                try {
-                    Intent sendIntent = new Intent();
-                    sendIntent.setAction(Intent.ACTION_SEND);
-                    sendIntent.putExtra(Intent.EXTRA_TEXT,
-                            context.getString(R.string.share_msg)
-                                    + "\n https://sites.google.com/view/auto-caller/home");
-                    sendIntent.setType("text/plain");
-                    context.startActivity(sendIntent);
-                } catch (Throwable th) {
-                    th.printStackTrace();
-                }
+        builder.setPositiveButton(R.string.share, (dialog, which) -> {
+            dialog.cancel();
+            response.setData(1, context);
+            try {
+                Intent sendIntent = new Intent();
+                sendIntent.setAction(Intent.ACTION_SEND);
+                sendIntent.putExtra(Intent.EXTRA_TEXT,
+                        context.getString(R.string.share_msg)
+                                + "\n https://sites.google.com/view/auto-caller/home");
+                sendIntent.setType("text/plain");
+                context.startActivity(sendIntent);
+            } catch (Throwable th) {
+                th.printStackTrace();
             }
         });
-        builder.setNegativeButton(R.string.not_now, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.cancel();
-                response.setData(-1, context);
-            }
+        builder.setNegativeButton(R.string.not_now, (dialog, which) -> {
+            dialog.cancel();
+            response.setData(-1, context);
         });
         builder.create().show();
     }
@@ -203,39 +178,27 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                     .setTitle(R.string.already_started_msg_title)
                     .setMessage(R.string.already_started_msg_body)
                     .setIcon(android.R.drawable.ic_dialog_alert)
-                    .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-
-                        public void onClick(DialogInterface dialog, int whichButton) {
-                            sendServiceMessage(AutoCallService.MESSAGE_EXIT);
-                        }})
+                    .setPositiveButton(android.R.string.yes, (dialog, whichButton) -> sendServiceMessage(AutoCallService.MESSAGE_EXIT))
                     .setNegativeButton(android.R.string.no, null).show();
             return;
         }
-        if (list.size() == 0) {
+        if (adapter.getCount() == 0) {
             Snackbar.make(view, R.string.toast_please_add_items,
                     Snackbar.LENGTH_LONG).setAction("Action", null).show();
             return;
         }
         final Intent serviceIntent = new Intent(
                 MainActivity.this.getApplicationContext(), AutoCallService.class);
-        final Handler handler = new Handler();
-        final Runnable start = new Runnable() {
-            @Override
-            public void run() {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                    startForegroundService(serviceIntent);
-                else
-                    startService(serviceIntent);
-                handler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        bindService(serviceIntent, MainActivity.this, 0);
-                    }
-                }, 3000);
-                lastServiceIntent = serviceIntent;
-                Snackbar.make(view, R.string.toast_starting_calls, Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
+        final Handler handler = new Handler(Looper.getMainLooper());
+        final Runnable start = () -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                startForegroundService(serviceIntent);
+            else
+                startService(serviceIntent);
+            handler.postDelayed(() -> bindService(serviceIntent, MainActivity.this, 0), 3000);
+            lastServiceIntent = serviceIntent;
+            Snackbar.make(view, R.string.toast_starting_calls, Snackbar.LENGTH_LONG)
+                    .setAction("Action", null).show();
         };
         if (continueLastSession) {
             serviceIntent.putExtra("continueLastSession", true);
@@ -249,37 +212,27 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 builder.setTitle(R.string.do_you_want_to_ignore);
                 final String numbers[] = getListNumbers();
                 final ArrayList<Integer> selectedItems = new ArrayList<>();
-                builder.setMultiChoiceItems(numbers, null, new DialogInterface.OnMultiChoiceClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which, boolean isChecked) {
-                        if (isChecked)
-                            selectedItems.add(which);
-                        else if (selectedItems.contains(which))
-                            selectedItems.remove(which);
-                    }
+                builder.setMultiChoiceItems(numbers, null, (dialog, which, isChecked) -> {
+                    if (isChecked)
+                        selectedItems.add(which);
+                    else if (selectedItems.contains(which))
+                        selectedItems.remove(which);
                 });
-                builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        StringBuilder b = new StringBuilder();
-                        for (Integer idx : selectedItems) {
-                            String num = numbers[idx].substring(numbers[idx].lastIndexOf('('));
-                            b.append(num.substring(1, num.length() - 1)).append(',');
-                        }
-                        if (b.length() > 0) {
-                            b.deleteCharAt(b.length() - 1);
-                            serviceIntent.putExtra("ignoreNumbers", b.toString());
-                            AnalyticsTrackers.getInstance(MainActivity.this).logIgnoredSomeNumbers();
-                        }
+
+                builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    StringBuilder b = new StringBuilder();
+                    for (Integer idx : selectedItems) {
+                        String num = numbers[idx].substring(numbers[idx].lastIndexOf('('));
+                        b.append(num.substring(1, num.length() - 1)).append(',');
+                    }
+                    if (b.length() > 0) {
+                        b.deleteCharAt(b.length() - 1);
+                        serviceIntent.putExtra("ignoreNumbers", b.toString());
+                        AnalyticsTrackers.getInstance(MainActivity.this).logIgnoredSomeNumbers();
                     }
                 });
                 builder.setNegativeButton(android.R.string.cancel, null);
-                builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
-                    @Override
-                    public void onDismiss(DialogInterface dialog) {
-                        start.run();
-                    }
-                });
+                builder.setOnDismissListener(dialog -> start.run());
                 builder.show();
                 return;
             }
@@ -290,7 +243,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private String[] getListNumbers() {
         final ArrayList<String> items = new ArrayList<>();
         HashSet<String> nums = new HashSet<>();
-        for (ContactsListItem li : list) {
+        for (int i = 0; i < adapter.getCount(); ++i) {
+            ContactListItem2 li = adapter.getItem(i);
             if (nums.contains(li.number)) continue;
             nums.add(li.number);
             items.add(li.name + String.format(" (%s)", li.number));
@@ -302,44 +256,20 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         Intent intent = getIntent();
         if (intent.getBooleanExtra("continueLastSession", false)) {
             continueLastSession = true;
             callListId = AutoCallSession.getLastSession(this).contactsListId;
         } else
-            callListId = intent.getIntExtra("list", -1);
-        ContextComponent contextComponent = DaggerContextComponent.builder()
-                .appComponent(App.get(this).getComponent())
-                .contextModule(new ContextModule(this))
-                .build();
-        contextComponent.inject(this);
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+            callListId = intent.getLongExtra("list", -1);
+
+        FloatingActionButton fab = findViewById(R.id.fab);
         if (fab != null) {
-            fab.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    fabClick(view);
-                }
-            });
+            fab.setOnClickListener(view -> fabClick(view));
         }
-
-        //startService(new Intent(this, CallDetectService.class));
-
-    }
-
-    @Override
-    public void onPostCreate(@Nullable Bundle savedInstanceState) {
-        super.onPostCreate(savedInstanceState);
-        list = listOfCallingLists.getById(callListId);
-        setTitle(list.getName());
-        Collections.sort(list, new Comparator<ContactsListItem>() {
-            @Override
-            public int compare(ContactsListItem lhs, ContactsListItem rhs) {
-                return Integer.valueOf(lhs.index).compareTo(rhs.index);
-            }
-        });
+        setTitle(AppDb.getInstance(this).contactListDao().find(callListId).name);
         initListView();
         if (continueLastSession) {
             AnalyticsTrackers.getInstance(MainActivity.this).logContinueLastSession();
@@ -348,7 +278,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     }
 
     private void initListView() {
-        adapter = new ArrayAdapter<ContactsListItem>(this, R.layout.contact_list_item, list) {
+        adapter = new ArrayAdapter<ContactListItem2>(this, R.layout.contact_list_item,
+                new ArrayList<>(Arrays.asList(AppDb.getInstance(this).contactInListDao().getByListId(callListId)))) {
             @Override
             public View getView(final int position, View convertView, ViewGroup parent) {
                 View rowView;
@@ -357,100 +288,85 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                             parent, false);
                 else
                     rowView = convertView;
-                final ContactsListItem listItem = adapter.getItem(position);
-                TextView contactName = (TextView) rowView.findViewById(R.id.textViewContactName);
+                final ContactListItem2 listItem = adapter.getItem(position);
+                TextView contactName = rowView.findViewById(R.id.textViewContactName);
                 contactName.setText(listItem.name);
-                final TextView contactNumber = (TextView) rowView.findViewById(R.id.textViewContactNumber);
+                final TextView contactNumber = rowView.findViewById(R.id.textViewContactNumber);
                 contactNumber.setText(listItem.number);
-                final Button clickCount = (Button) rowView.findViewById(R.id.btnCallCount);
+                final Button clickCount = rowView.findViewById(R.id.btnCallCount);
                 clickCount.setText(listItem.callCount + "");
-                clickCount.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        int num = Integer.parseInt(clickCount.getText().toString());
-                        num = Math.max(1, (num + 1) % 16);
-                        clickCount.setText(num + "");
-                        listItem.callCount = num;
-                        rebind();
-                        AnalyticsTrackers.getInstance(MainActivity.this).logEditContactCount();
-                    }
+
+                clickCount.setOnClickListener(v -> {
+                    int num = Integer.parseInt(clickCount.getText().toString());
+                    num = Math.max(1, (num + 1) % 16);
+                    clickCount.setText(String.format(Locale.ENGLISH, "%d", num));
+                    listItem.callCount = num;
+                    AppDb.getInstance(MainActivity.this).contactInListDao()
+                            .updateCallCount(callListId, listItem.contactId, num);
+                    adapter.notifyDataSetChanged();
+                    AnalyticsTrackers.getInstance(MainActivity.this).logEditContactCount();
                 });
-                rowView.findViewById(R.id.delete_item).setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
-                        .setTitle(R.string.delete_item)
-                        .setMessage(R.string.delete_item_message)
-                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                int idx = list.indexOf(listItem);
-                                for (++idx; idx < list.size(); ++idx)
-                                    list.get(idx).index--;
-                                //adapter.remove(listItem);
-                                list.remove(listItem);
-                                rebind();
-                                AnalyticsTrackers.getInstance(MainActivity.this).logDeleteContact();
-                            }
-                        })
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show();
-                    }
-                });
-                rowView.findViewById(R.id.btnMoveUp).setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        if (position > 0) {
-                            //adapter.remove(listItem);
-                            //adapter.insert(listItem, position - 1);
-                            list.remove(listItem);
-                            list.add(position - 1, listItem);
-                            listItem.index--;
-                            adapter.getItem(position).index++;
-                            rebind();
-                            AnalyticsTrackers.getInstance(MainActivity.this).logEditContactOrder();
+                rowView.findViewById(R.id.delete_item).setOnClickListener(v -> new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
+                .setTitle(R.string.delete_item)
+                .setMessage(R.string.delete_item_message)
+                .setPositiveButton(android.R.string.yes, (dialog, which) -> {
+                    AppDb.getInstance(MainActivity.this).contactInListDao()
+                            .delete(callListId, listItem.contactId);
+                    AppDb.getInstance(MainActivity.this).contactInListDao()
+                            .decrementIndex(callListId, listItem.index);
+                    adapter.remove(listItem);
+                    for (int i = 0; i < adapter.getCount(); ++i) {
+                        ContactListItem2 item = adapter.getItem(i);
+                        if (item.index >= listItem.index) {
+                            --item.index;
                         }
                     }
-                });
-                rowView.findViewById(R.id.btnMoveDown).setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        if (position < adapter.getCount() - 1) {
-                            //adapter.remove(listItem);
-                            //adapter.insert(listItem, position + 1);
-                            list.remove(listItem);
-                            list.add(position + 1, listItem);
-                            listItem.index++;
-                            adapter.getItem(position).index--;
-                            rebind();
-                            AnalyticsTrackers.getInstance(MainActivity.this).logEditContactOrder();
-                        }
+                    adapter.notifyDataSetChanged();
+                    AnalyticsTrackers.getInstance(MainActivity.this).logDeleteContact();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show());
+                rowView.findViewById(R.id.btnMoveUp).setOnClickListener(v -> {
+                    if (position > 0) {
+                        ContactListItem2 listItem2 = adapter.getItem(position - 1);
+                        adapter.remove(listItem);
+                        adapter.insert(listItem, position - 1);
+                        AppDb.getInstance(MainActivity.this).contactInListDao()
+                                .updateIndex(callListId, listItem.contactId, --listItem.index);
+                        AppDb.getInstance(MainActivity.this).contactInListDao()
+                                .updateIndex(callListId, listItem2.contactId, ++listItem2.index);
+                        adapter.notifyDataSetChanged();
+                        AnalyticsTrackers.getInstance(MainActivity.this).logEditContactOrder();
                     }
                 });
-                rowView.findViewById(R.id.btnSelectCity).setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        showSelectCityDialog(listItem);
+                rowView.findViewById(R.id.btnMoveDown).setOnClickListener(v -> {
+                    if (position < adapter.getCount() - 1) {
+                        ContactListItem2 listItem2 = adapter.getItem(position + 1);
+                        adapter.remove(listItem);
+                        adapter.insert(listItem, position + 1);
+                        AppDb.getInstance(MainActivity.this).contactInListDao()
+                                .updateIndex(callListId, listItem.contactId, ++listItem.index);
+                        AppDb.getInstance(MainActivity.this).contactInListDao()
+                                .updateIndex(callListId, listItem2.contactId, --listItem2.index);
+                        adapter.notifyDataSetChanged();
+                        AnalyticsTrackers.getInstance(MainActivity.this).logEditContactOrder();
                     }
                 });
-                rowView.findViewById(R.id.btnSelectProfile).setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        showSelectCallProfileDialog(listItem);
-                    }
-                });
+                rowView.findViewById(R.id.btnSelectCity).setOnClickListener(v -> showSelectCityDialog(listItem));
+                rowView.findViewById(R.id.btnSelectProfile).setOnClickListener(v -> showSelectCallProfileDialog(listItem));
                 return rowView;
             }
         };
-        ListView listView = (ListView) findViewById(R.id.listViewNumbers);
+        ListView listView = findViewById(R.id.listViewNumbers);
         listView.setAdapter(adapter);
     }
 
-    private void showSelectCityDialog(final ContactsListItem listItem) {
-        String[] cities = new String[cityList.size()];
+    private void showSelectCityDialog(final ContactListItem2 listItem) {
+        City[] cities0 = AppDb.getInstance(this).cityDao().getAll();
+        String[] cities = new String[cities0.length];
         int selectedItem = -1;
-        for (int i = 0; i < cityList.size(); ++i) {
-            City city = cityList.get(i);
+        for (int i = 0; i < cities0.length; ++i) {
+            City city = cities0[i];
             cities[i] = city.country + " - " + city.name;
             if (listItem.cityId != null && listItem.cityId == city.id)
                 selectedItem = i;
@@ -458,38 +374,35 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
                 .setTitle(getString(R.string.dlg_select_city_title) + " - " + listItem.number)
-                .setSingleChoiceItems(cities, selectedItem, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        String phoneNumber = TextUtils.fixPhoneNumber(listItem.number);
-                        for (int iList = 0; iList < list.myList.size(); ++iList) {
-                            ContactsList list = MainActivity.this.list.myList.get(iList);
-                            for (int i = 0; i < list.size(); ++i) {
-                                ContactsListItem item = list.get(i);
-                                String other = TextUtils.fixPhoneNumber(item.number);
-                                boolean equals = other.equals(phoneNumber)
-                                        || other.endsWith(phoneNumber)
-                                        || phoneNumber.endsWith(other);
-                                if (equals)
-                                    item.cityId = cityList.get(which).id;
-                            }
-                        }
-                        rebind();
-                        dialog.dismiss();
-                        Toast.makeText(MainActivity.this,
-                                String.format(getString(R.string.dlg_select_city_msg), listItem.number),
-                                Toast.LENGTH_LONG).show();
-                        AnalyticsTrackers.getInstance(MainActivity.this).logEditContactCity();
+
+                .setSingleChoiceItems(cities, selectedItem, (dialog, which) -> {
+                    String phoneNumber = TextUtils.fixPhoneNumber(listItem.number);
+                    for (int i = 0; i < adapter.getCount(); ++i) {
+                        ContactListItem2 item = adapter.getItem(i);
+                        String other = TextUtils.fixPhoneNumber(item.number);
+                        boolean equals = other.equals(phoneNumber)
+                                || other.endsWith(phoneNumber)
+                                || phoneNumber.endsWith(other);
+                        if (equals)
+                            item.cityId = cities0[which].id;
                     }
+
+                    AppDb.getInstance(this).contactDao().updateCity(listItem.contactId, (long) cities0[which].id);
+                    dialog.dismiss();
+                    Toast.makeText(MainActivity.this,
+                            String.format(getString(R.string.dlg_select_city_msg), listItem.number),
+                            Toast.LENGTH_LONG).show();
+                    AnalyticsTrackers.getInstance(MainActivity.this).logEditContactCity();
                 })
                 .show();
     }
 
-    private void showSelectCallProfileDialog(final ContactsListItem listItem) {
-        String[] profiles = new String[callProfileList.size()];
+    private void showSelectCallProfileDialog(final ContactListItem2 listItem) {
+        AutoCallProfile[] profiles0 = AppDb.getInstance(this).callProfileDao().getAll();
+        String[] profiles = new String[profiles0.length];
         int selectedItem = -1;
-        for (int i = 0; i < callProfileList.size(); ++i) {
-            AutoCallProfile profile = callProfileList.get(i);
+        for (int i = 0; i < profiles0.length; ++i) {
+            AutoCallProfile profile = profiles0[i];
             profiles[i] = profile.name;
             if (listItem.callProfileId != null && listItem.callProfileId == profile.id)
                 selectedItem = i;
@@ -497,29 +410,24 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
         new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
                 .setTitle(getString(R.string.dlg_select_profile_title) + " - " + listItem.number)
-                .setSingleChoiceItems(profiles, selectedItem, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        String phoneNumber = TextUtils.fixPhoneNumber(listItem.number);
-                        for (int iList = 0; iList < list.myList.size(); ++iList) {
-                            ContactsList list = MainActivity.this.list.myList.get(iList);
-                            for (int i = 0; i < list.size(); ++i) {
-                                ContactsListItem item = list.get(i);
-                                String other = TextUtils.fixPhoneNumber(item.number);
-                                boolean equals = other.equals(phoneNumber)
-                                        || other.endsWith(phoneNumber)
-                                        || phoneNumber.endsWith(other);
-                                if (equals)
-                                    item.callProfileId = callProfileList.get(which).id;
-                            }
-                        }
-                        rebind();
-                        dialog.dismiss();
-                        Toast.makeText(MainActivity.this,
-                                String.format(getString(R.string.dlg_select_city_msg), listItem.number),
-                                Toast.LENGTH_LONG).show();
-                        AnalyticsTrackers.getInstance(MainActivity.this).logEditContactProfile();
+                .setSingleChoiceItems(profiles, selectedItem, (dialog, which) -> {
+                    String phoneNumber = TextUtils.fixPhoneNumber(listItem.number);
+                    for (int i = 0; i < adapter.getCount(); ++i) {
+                        ContactListItem2 item = adapter.getItem(i);
+                        String other = TextUtils.fixPhoneNumber(item.number);
+                        boolean equals = other.equals(phoneNumber)
+                                || other.endsWith(phoneNumber)
+                                || phoneNumber.endsWith(other);
+                        if (equals)
+                            item.callProfileId = profiles0[which].id;
                     }
+
+                    AppDb.getInstance(this).contactDao().updateCallProfile(listItem.contactId, (long) profiles0[which].id);
+                    dialog.dismiss();
+                    Toast.makeText(MainActivity.this,
+                            String.format(getString(R.string.dlg_select_city_msg), listItem.number),
+                            Toast.LENGTH_LONG).show();
+                    AnalyticsTrackers.getInstance(MainActivity.this).logEditContactProfile();
                 })
                 .show();
     }
@@ -559,14 +467,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         .setTitle(R.string.dialog_title_systemalert_permission)
                         .setIcon(android.R.drawable.ic_dialog_alert)
                         .setMessage(R.string.dialog_msg_systemalert_permission)
-                        .setOnDismissListener(new DialogInterface.OnDismissListener() {
-                            @Override
-                            public void onDismiss(DialogInterface dialog) {
-                                OsUtils.requestSystemAlertPermission(
-                                        MainActivity.this,
-                                        PERMISSION_RQUEST);
-                            }
-                        })
+                        .setOnDismissListener(dialog -> OsUtils.requestSystemAlertPermission(
+                                MainActivity.this,
+                                PERMISSION_RQUEST))
                         .show();
                 return false;
             }
@@ -626,11 +529,11 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             return true;
         } else if (id == R.id.action_show_log) {
             Intent intent = new Intent(this, ShowLogActivity.class);
-            intent.putExtra("list", listOfCallingLists.idOf(list));
+            intent.putExtra("list", callListId);
             startActivity(intent);
         } else if (id == R.id.action_edit_groups) {
             Intent intent = new Intent(this, EditGroupsActivity.class);
-            intent.putExtra("list", listOfCallingLists.idOf(list));
+            intent.putExtra("list", callListId);
             startActivity(intent);
         } else if (id == R.id.action_info) {
             new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
@@ -666,20 +569,35 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         if (cursor.moveToFirst()) {
                             while (!cursor.isAfterLast()) {
                                 String num = TextUtils.fixPhoneNumber(cursor.getString(phoneIdx));
-                                if (!alreadyAddedNumbers.contains(num)) {
+                                ContactsListItem item = AppDb.getInstance(this).contactDao().findByNumber(num);
+                                if (!alreadyAddedNumbers.contains(num) && item == null) {
                                     alreadyAddedNumbers.add(num);
-                                    ContactsListItem item = new ContactsListItem();
+                                    item = new ContactsListItem();
                                     item.number = num;
                                     item.name = cursor.getString(nameIdx);
-                                    item.index = adapter.getCount();
-                                    item.callCount = 1;
-                                    //adapter.add(item);
-                                    list.add(item);
-                                    showSelectCityDialog(item);
+                                    item.id = AppDb.getInstance(this).contactDao().insert(item);
                                 }
+                                ContactInList contactInList = new ContactInList();
+                                contactInList.listId = callListId;
+                                contactInList.contactId = item.id;
+                                contactInList.index = adapter.getCount();
+                                contactInList.callCount = 1;
+                                AppDb.getInstance(this).contactInListDao().insert(contactInList);
+
+                                ContactListItem2 item2 = new ContactListItem2();
+                                item2.callCount = 1;
+                                item2.index = adapter.getCount();
+                                item2.contactId = item.id;
+                                item2.name = item.name;
+                                item2.number = item.number;
+                                item2.cityId = item.cityId;
+                                item2.callProfileId = item.callProfileId;
+                                adapter.add(item2);
+                                if (item2.cityId == null)
+                                    showSelectCityDialog(item2);
                                 cursor.moveToNext();
                             }
-                            rebind();
+                            adapter.notifyDataSetChanged();
                             AnalyticsTrackers.getInstance(MainActivity.this).logAddContact();
                         }
                     } catch (Exception e) {

@@ -17,7 +17,6 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.ArrayList;
@@ -25,28 +24,21 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-import javax.inject.Inject;
-
-import kilanny.autocaller.App;
-import kilanny.autocaller.data.ContactsList;
+import kilanny.autocaller.R;
+import kilanny.autocaller.adapters.ExpandableListAdapter_Groups;
 import kilanny.autocaller.data.ContactsListGroup;
 import kilanny.autocaller.data.ContactsListItem;
-import kilanny.autocaller.adapters.ExpandableListAdapter_Groups;
-import kilanny.autocaller.data.ListOfCallingLists;
-import kilanny.autocaller.R;
-import kilanny.autocaller.di.ContextComponent;
-import kilanny.autocaller.di.ContextModule;
-import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.db.AppDb;
+import kilanny.autocaller.db.ContactInGroup;
+import kilanny.autocaller.db.ContactListItem2;
 
 /**
  * Created by Yasser on 08/12/2016.
  */
 public class EditGroupsActivity extends AppCompatActivity {
 
-    private ContextComponent contextComponent;
-
     public static class MyListItem {
-        public ContactsListItem item;
+        public ContactListItem2 item;
         public boolean isSelected;
     }
 
@@ -54,14 +46,12 @@ public class EditGroupsActivity extends AppCompatActivity {
     ExpandableListView expListView;
     List<String> listDataHeader;
     HashMap<String, List<String>> listDataChild;
-    @Inject ListOfCallingLists listOfCallingLists;
-    private ContactsList clist;
-    private int listId;
+    private long listId;
 
-    private ArrayList<MyListItem> initAddDlgListView(ListView listView, ContactsList contactsList) {
+    private ArrayList<MyListItem> initAddDlgListView() {
         final ArrayList<MyListItem> items = new ArrayList<>();
         HashSet<String> nums = new HashSet<>();
-        for (ContactsListItem li : contactsList) {
+        for (ContactListItem2 li : AppDb.getInstance(this).contactInListDao().getByListId(listId)) {
             if (nums.contains(li.number)) continue;
             nums.add(li.number);
             MyListItem myListItem = new MyListItem();
@@ -69,6 +59,10 @@ public class EditGroupsActivity extends AppCompatActivity {
             myListItem.item = li;
             items.add(myListItem);
         }
+        return items;
+    }
+
+    private ArrayList<MyListItem> initAddDlgListView(ListView listView, final ArrayList<MyListItem> items) {
         //http://www.mysamplecode.com/2012/07/android-listview-checkbox-example.html
         listView.setAdapter(new ArrayAdapter<MyListItem>(this,
                 R.layout.contactgrouplist_item, items) {
@@ -77,8 +71,7 @@ public class EditGroupsActivity extends AppCompatActivity {
                 CheckBox name;
             }
             @Override
-            public View getView(int position, View convertView,
-                                ViewGroup parent) {
+            public View getView(int position, View convertView, ViewGroup parent) {
                 ViewHolder holder;
 
                 if (convertView == null) {
@@ -87,16 +80,14 @@ public class EditGroupsActivity extends AppCompatActivity {
                     convertView = vi.inflate(R.layout.contactgrouplist_item, null);
 
                     holder = new ViewHolder();
-                    holder.code = (TextView) convertView.findViewById(R.id.code);
-                    holder.name = (CheckBox) convertView.findViewById(R.id.checkBox1);
+                    holder.code = convertView.findViewById(R.id.code);
+                    holder.name = convertView.findViewById(R.id.checkBox1);
                     convertView.setTag(holder);
 
-                    holder.name.setOnClickListener( new View.OnClickListener() {
-                        public void onClick(View v) {
-                            CheckBox cb = (CheckBox) v ;
-                            MyListItem country = (MyListItem) cb.getTag();
-                            country.isSelected = cb.isChecked();
-                        }
+                    holder.name.setOnClickListener(v -> {
+                        CheckBox cb = (CheckBox) v ;
+                        MyListItem country = (MyListItem) cb.getTag();
+                        country.isSelected = cb.isChecked();
                     });
                 } else {
                     holder = (ViewHolder) convertView.getTag();
@@ -114,107 +105,95 @@ public class EditGroupsActivity extends AppCompatActivity {
         return items;
     }
 
-    //http://www.androidhive.info/2013/07/android-expandable-list-view-tutorial/
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_groups);
         Intent intent = getIntent();
-        listId = intent.getIntExtra("list", -1);
-        contextComponent = DaggerContextComponent.builder()
-                .appComponent(App.get(this).getComponent())
-                .contextModule(new ContextModule(this))
-                .build();
-        contextComponent.inject(this);
-        findViewById(R.id.fab_addgroup).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (clist.size() == 0) {
-                    Toast.makeText(EditGroupsActivity.this, R.string.contacts_list_emptry,
+        listId = intent.getLongExtra("list", -1);
+        findViewById(R.id.fab_addgroup).setOnClickListener(v -> {
+            final ArrayList<MyListItem> items = initAddDlgListView();
+            if (items.size() == 0) {
+                Toast.makeText(EditGroupsActivity.this, R.string.contacts_list_emptry,
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+            final Dialog dlg = new Dialog(EditGroupsActivity.this);
+            dlg.setContentView(R.layout.dlg_add_group);
+            dlg.setTitle(R.string.add_contactgroup);
+            ListView listView = dlg.findViewById(R.id.listViewGroupContacts);
+            final ArrayList<MyListItem> myListItems = initAddDlgListView(listView, items);
+            dlg.findViewById(R.id.btnAddGroupDlgOk).setOnClickListener(v1 -> {
+                EditText txt = dlg.findViewById(R.id.txtGroupName);
+                if (txt.getText().toString().trim().length() == 0) {
+                    Toast.makeText(dlg.getContext(), R.string.please_input_group_name,
                             Toast.LENGTH_LONG).show();
                     return;
                 }
-                final Dialog dlg = new Dialog(EditGroupsActivity.this);
-                dlg.setContentView(R.layout.dlg_add_group);
-                dlg.setTitle(R.string.add_contactgroup);
-                ListView listView = (ListView) dlg.findViewById(R.id.listViewGroupContacts);
-                final ArrayList<MyListItem> myListItems = initAddDlgListView(listView, clist);
-                dlg.findViewById(R.id.btnAddGroupDlgOk).setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        EditText txt = (EditText) dlg.findViewById(R.id.txtGroupName);
-                        if (txt.getText().toString().trim().length() == 0) {
-                            Toast.makeText(dlg.getContext(), R.string.please_input_group_name,
-                                    Toast.LENGTH_LONG).show();
-                            return;
-                        }
-                        for (String s : listDataHeader) {
-                            if (s.equals(txt.getText().toString())) {
-                                Toast.makeText(dlg.getContext(), R.string.group_name_already_exists,
-                                        Toast.LENGTH_LONG).show();
-                                return;
-                            }
-                        }
-                        int numSelected = 0;
-                        for (MyListItem li : myListItems)
-                            if (li.isSelected)
-                                ++numSelected;
-                        if (numSelected < 2) {
-                            Toast.makeText(dlg.getContext(), R.string.group_members_atleast_two,
-                                    Toast.LENGTH_LONG).show();
-                            return;
-                        }
-                        ContactsListGroup g = new ContactsListGroup();
-                        g.name = txt.getText().toString();
-                        listDataHeader.add(g.name);
-                        ArrayList<String> childs = new ArrayList<>();
-                        for (MyListItem li : myListItems) {
-                            if (li.isSelected) {
-                                g.contacts.put(li.item.number, li.item.name);
-                                childs.add(li.item.name + " (" + li.item.number + ")");
-                            }
-                        }
-                        listDataChild.put(g.name, childs);
-                        clist.getGroups().add(g);
-                        clist.save(EditGroupsActivity.this);
-                        listAdapter.notifyDataSetChanged();
-                        dlg.dismiss();
+                for (String s : listDataHeader) {
+                    if (s.equals(txt.getText().toString())) {
+                        Toast.makeText(dlg.getContext(), R.string.group_name_already_exists,
+                                Toast.LENGTH_LONG).show();
+                        return;
                     }
-                });
-                dlg.show();
-            }
+                }
+                int numSelected = 0;
+                for (MyListItem li : myListItems)
+                    if (li.isSelected)
+                        ++numSelected;
+                if (numSelected < 2) {
+                    Toast.makeText(dlg.getContext(), R.string.group_members_atleast_two,
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+                ContactsListGroup g = new ContactsListGroup();
+                g.name = txt.getText().toString();
+                g.contactListId = listId;
+                g.id = AppDb.getInstance(this).contactGroupDao().insert(g);
+                listDataHeader.add(g.name);
+                ArrayList<String> childs = new ArrayList<>();
+                for (MyListItem li : myListItems) {
+                    if (li.isSelected) {
+                        ContactInGroup contactInGroup = new ContactInGroup();
+                        contactInGroup.groupId = g.id;
+                        contactInGroup.contactId = li.item.id;
+                        AppDb.getInstance(this).contactInGroupDao().insert(contactInGroup);
+                        childs.add(li.item.name + " (" + li.item.number + ")");
+                    }
+                }
+                listDataChild.put(g.name, childs);
+                listAdapter.notifyDataSetChanged();
+                dlg.dismiss();
+            });
+            dlg.show();
         });
-    }
 
-    @Override
-    public void onPostCreate(@Nullable Bundle savedInstanceState) {
-        super.onPostCreate(savedInstanceState);
-        clist = listOfCallingLists.getById(listId);
         // get the listview
-        expListView = (ExpandableListView) findViewById(R.id.expList_groups);
+        expListView = findViewById(R.id.expList_groups);
 
         // preparing list data
         prepareListData();
 
         listAdapter = new ExpandableListAdapter_Groups(this,
-                listDataHeader, listDataChild, clist);
+                listDataHeader, listDataChild, listId);
 
         // setting list adapter
         expListView.setAdapter(listAdapter);
     }
 
     /*
-         * Preparing the list data
-         */
+     * Preparing the list data
+     */
     private void prepareListData() {
         listDataHeader = new ArrayList<>();
         listDataChild = new HashMap<>();
-        for (ContactsListGroup group : clist.getGroups()) {
+        for (ContactsListGroup group : AppDb.getInstance(this).contactGroupDao().getByListId(listId)) {
             String head = group.name;
             listDataHeader.add(head);
             ArrayList<String> childs = new ArrayList<>();
-            for (String number : group.contacts.keySet()) {
-                childs.add(group.contacts.get(number) + " (" + number + ")");
+            for (ContactsListItem contactsListItem : AppDb.getInstance(this).contactInGroupDao()
+                    .getNumbersByGroupId(group.id)) {
+                childs.add(contactsListItem.name + " (" + contactsListItem.number + ")");
             }
             listDataChild.put(head, childs);
         }

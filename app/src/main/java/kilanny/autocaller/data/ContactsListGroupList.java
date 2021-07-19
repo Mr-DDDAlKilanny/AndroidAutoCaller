@@ -11,6 +11,7 @@ import java.util.ArrayList;
 /**
  * Created by Yasser on 08/12/2016.
  */
+@Deprecated
 public class ContactsListGroupList extends ArrayList<ContactsListGroup>
     implements Serializable {
 

@@ -2,22 +2,62 @@ package kilanny.autocaller.data;
 
 import android.content.Intent;
 
+import androidx.annotation.Keep;
+import androidx.annotation.NonNull;
+import androidx.room.ColumnInfo;
+import androidx.room.Entity;
+import androidx.room.Ignore;
+import androidx.room.PrimaryKey;
+
 import java.io.Serializable;
 
 /**
  * Created by user on 12/6/2017.
  */
+@Entity(tableName = "city")
 public class City implements Serializable {
     static final long serialVersionUID=1L;
 
-    public final int id;
+    @PrimaryKey(autoGenerate = true)
+    public int id;
 
-    public int prayerCalcMethod, asrPrayerCalcMethod;
-    public int timezone, minMinutesBeforeSunrise, minMinuteAfterFajr;
-    public double lng, lat;
-    public String name, plateName;
+    @ColumnInfo(name = "prayer_calc_method")
+    public int prayerCalcMethod;
+
+    @ColumnInfo(name = "asr_prayer_calc_method")
+    public int asrPrayerCalcMethod;
+
+    @ColumnInfo(name = "timezone")
+    public int timezone;
+
+    @ColumnInfo(name = "min_minutes_before_sunrise")
+    public int minMinutesBeforeSunrise;
+
+    @ColumnInfo(name = "min_minute_after_fajr")
+    public int minMinuteAfterFajr;
+
+    @ColumnInfo(name = "lng")
+    public double lng;
+
+    @ColumnInfo(name = "lat")
+    public double lat;
+
+    @ColumnInfo(name = "name")
+    @NonNull
+    public String name;
+
+    @ColumnInfo(name = "place_name")
+    public String plateName;
+
+    @ColumnInfo(name = "country")
+    @NonNull
     public String country;
 
+    @Keep
+    public City() {
+    }
+
+    @Ignore
     City(int id) {
         this.id = id;
     }

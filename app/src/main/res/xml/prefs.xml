@@ -1,47 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-    <SwitchPreference
-        android:key="playFinishTune"
-        android:defaultValue="true"
-        android:title="@string/pref_playfinishtune_title"
-        android:summary="@string/pref_playfinishtune_descr" />
-    <SwitchPreference
-        android:key="showIgnoreDlg"
-        android:defaultValue="false"
-        android:title="@string/pref_show_ignore_title"
-        android:summary="@string/pref_show_ignore_summary" />
-    <ListPreference
-        android:key="autoRecallListNo"
-        android:title="@string/auto_recall_count"
-        android:summary="@string/auto_recall_count_summary"
-        android:entries="@array/auto_recall_count_names"
-        android:entryValues="@array/auto_recall_count_values"
-        android:defaultValue="@string/auto_recall_count_array_default_value" />
-    <PreferenceCategory android:title="@string/pref_ring_by_city">
-        <SwitchPreference
-            android:key="cityBasedRingEnabled"
-            android:defaultValue="true"
-            android:title="@string/pref_enablecity_title"
-            android:summary="@string/pref_enablecity_summary" />
+<androidx.preference.PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+    <androidx.preference.SwitchPreference
+        app:key="playFinishTune"
+        app:defaultValue="true"
+        app:title="@string/pref_playfinishtune_title"
+        app:summary="@string/pref_playfinishtune_descr" />
+    <androidx.preference.SwitchPreference
+        app:key="showIgnoreDlg"
+        app:defaultValue="false"
+        app:title="@string/pref_show_ignore_title"
+        app:summary="@string/pref_show_ignore_summary" />
+    <androidx.preference.ListPreference
+        app:key="autoRecallListNo"
+        app:title="@string/auto_recall_count"
+        app:summary="@string/auto_recall_count_summary"
+        app:entries="@array/auto_recall_count_names"
+        app:entryValues="@array/auto_recall_count_values"
+        app:defaultValue="@string/auto_recall_count_array_default_value" />
+    <androidx.preference.PreferenceCategory app:title="@string/pref_ring_by_city">
+        <androidx.preference.SwitchPreference
+            app:key="cityBasedRingEnabled"
+            app:defaultValue="true"
+            app:title="@string/pref_enablecity_title"
+            app:summary="@string/pref_enablecity_summary" />
         <!--<EditTextPreference-->
-            <!--android:dependency="cityBasedRingEnabled"-->
-            <!--android:key="minMinutesAfterFajr"-->
-            <!--android:title="@string/pref_minMinutesAfterFajr_title"-->
-            <!--android:summary="@string/pref_minMinutesAfterFajr_summary"-->
-            <!--android:defaultValue="0" />-->
+            <!--app:dependency="cityBasedRingEnabled"-->
+            <!--app:key="minMinutesAfterFajr"-->
+            <!--app:title="@string/pref_minMinutesAfterFajr_title"-->
+            <!--app:summary="@string/pref_minMinutesAfterFajr_summary"-->
+            <!--app:defaultValue="0" />-->
         <!--<EditTextPreference-->
-            <!--android:dependency="cityBasedRingEnabled"-->
-            <!--android:key="minMinutesBeforeSunrise"-->
-            <!--android:title="@string/pref_minMinutesBeforeSunrise_title"-->
-            <!--android:summary="@string/pref_minMinutesBeforeSunrise_summary"-->
-            <!--android:defaultValue="0" />-->
+            <!--app:dependency="cityBasedRingEnabled"-->
+            <!--app:key="minMinutesBeforeSunrise"-->
+            <!--app:title="@string/pref_minMinutesBeforeSunrise_title"-->
+            <!--app:summary="@string/pref_minMinutesBeforeSunrise_summary"-->
+            <!--app:defaultValue="0" />-->
         <!--<ListPreference-->
-            <!--android:dependency="cityBasedRingEnabled"-->
-            <!--android:key="priorityOfRing"-->
-            <!--android:title="@string/pref_ringPriority_title"-->
-            <!--android:summary="@string/pref_ringPriority_summary"-->
-            <!--android:entries="@array/ring_priority_names"-->
-            <!--android:entryValues="@array/ring_priority_values"-->
-            <!--android:defaultValue="@string/ring_priority_array_default_value" />-->
-    </PreferenceCategory>
-</PreferenceScreen>
+            <!--app:dependency="cityBasedRingEnabled"-->
+            <!--app:key="priorityOfRing"-->
+            <!--app:title="@string/pref_ringPriority_title"-->
+            <!--app:summary="@string/pref_ringPriority_summary"-->
+            <!--app:entries="@array/ring_priority_names"-->
+            <!--app:entryValues="@array/ring_priority_values"-->
+            <!--app:defaultValue="@string/ring_priority_array_default_value" />-->
+    </androidx.preference.PreferenceCategory>
+</androidx.preference.PreferenceScreen>

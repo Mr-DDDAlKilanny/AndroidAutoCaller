@@ -25,22 +25,17 @@ import com.sucho.placepicker.PlacePicker;
 
 import java.util.List;
 
-import javax.inject.Inject;
-
 import kilanny.autocaller.App;
 import kilanny.autocaller.R;
 import kilanny.autocaller.data.City;
 import kilanny.autocaller.data.CityList;
-import kilanny.autocaller.di.ContextComponent;
-import kilanny.autocaller.di.ContextModule;
-import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.db.AppDb;
 import kilanny.autocaller.utils.AnalyticsTrackers;
 import kilanny.autocaller.utils.PrayTimes;
 
 /**
  * Created by user on 12/11/2017.
  */
-
 public class EditCityActivity extends AppCompatActivity {
 
     private static final int PERMISSIONS_REQUEST = 2;
@@ -53,9 +48,6 @@ public class EditCityActivity extends AppCompatActivity {
     private AppCompatSpinner prayerCalcMethod, asrPrayerCalcMethod;
     private AddressData selectedPlace;
     private City editCity;
-
-    @Inject
-    CityList cities;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -127,11 +119,6 @@ public class EditCityActivity extends AppCompatActivity {
                         Constants.PLACE_PICKER_REQUEST);
             }
         });
-        ContextComponent contextComponent = DaggerContextComponent.builder()
-                .appComponent(App.get(this).getComponent())
-                .contextModule(new ContextModule(this))
-                .build();
-        contextComponent.inject(this);
     }
 
     @Override
@@ -150,6 +137,7 @@ public class EditCityActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode,
                                            @NonNull String permissions[],
                                            @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         switch (requestCode) {
             case PERMISSIONS_REQUEST: {
                 // If request is cancelled, the result arrays are empty.
@@ -192,7 +180,8 @@ public class EditCityActivity extends AppCompatActivity {
                 cityEditText.setError(null, null);
                 canSave = false;
             }
-            if (editCity == null && cities.findByName(country, city) != null) {
+            if (editCity == null && AppDb.getInstance(EditCityActivity.this)
+                    .cityDao().findByName(country, city) != null) {
                 Toast.makeText(EditCityActivity.this,
                         R.string.city_already_exists,
                         Toast.LENGTH_LONG).show();
@@ -237,7 +226,7 @@ public class EditCityActivity extends AppCompatActivity {
                 editCity.putExtraInIntent(result);
                 AnalyticsTrackers.getInstance(EditCityActivity.this).logEditCity();
             } else {
-                City c = cities.addNewCity();
+                City c = new City();
                 c.prayerCalcMethod = prayerTimeCalcMethod;
                 c.asrPrayerCalcMethod = asrPrayerTimeCalcMethod;
                 c.country = country;

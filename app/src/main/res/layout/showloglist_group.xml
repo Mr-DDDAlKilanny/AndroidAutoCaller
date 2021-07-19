@@ -1,15 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="horizontal" android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@android:color/holo_red_light">
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_marginRight="48dp"
+    android:layout_marginEnd="48dp"
+    android:layout_height="wrap_content">
+
+    <ImageButton
+        android:id="@+id/btnExpand"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_alignTop="@id/lblListHeader"
+        android:layout_alignBottom="@id/lblListHeader"
+        android:background="@android:color/holo_red_light"
+        android:src="@android:drawable/arrow_down_float" />
+
     <TextView
         android:id="@+id/lblListHeader"
-        android:layout_width="fill_parent"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="25sp"
-        android:paddingLeft="?android:attr/expandableListPreferredItemPaddingLeft"
-        android:paddingStart="?android:attr/expandableListPreferredItemPaddingLeft"
-        android:paddingRight="?android:attr/expandableListPreferredItemPaddingLeft"
-        android:textColor="@android:color/white" />
-</LinearLayout>
+        android:layout_toEndOf="@id/btnExpand"
+        android:layout_toRightOf="@id/btnExpand"
+        android:background="@android:color/holo_red_light"
+        android:textColor="@android:color/white"
+        android:textSize="25sp" />
+
+    <androidx.recyclerview.widget.RecyclerView xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/child_recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_below="@id/lblListHeader"
+        tools:itemCount="10"
+        tools:listitem="@layout/showloglist_item" />
+</RelativeLayout>

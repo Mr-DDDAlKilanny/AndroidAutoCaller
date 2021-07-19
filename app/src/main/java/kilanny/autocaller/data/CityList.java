@@ -10,26 +10,21 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-
 import kilanny.autocaller.R;
-import kilanny.autocaller.di.ApplicationContext;
 import kilanny.autocaller.serializers.SerializerFactory;
 import kilanny.autocaller.utils.PrayTimes;
 
 /**
  * Created by user on 12/6/2017.
  */
-@Singleton
+@Deprecated
 public class CityList extends ArrayList<City> implements Serializable {
 
     private static final String LIST_FILE_NAME = "CityList.dat";
 
     private int idCounter = 1;
 
-    @Inject
-    public CityList(@ApplicationContext Context context) {
+    public CityList(Context context) {
         try {
             FileInputStream fis = context.openFileInput(LIST_FILE_NAME);
             CityList instance = SerializerFactory.getSerializer()

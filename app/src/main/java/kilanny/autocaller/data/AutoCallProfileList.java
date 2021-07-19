@@ -10,15 +10,10 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-
 import kilanny.autocaller.R;
-import kilanny.autocaller.di.ApplicationContext;
 import kilanny.autocaller.serializers.SerializerFactory;
 
-//@Singleton
-//TODO: should be singleton !! Why uncommenting gives error?
+@Deprecated
 public class AutoCallProfileList extends ArrayList<AutoCallProfile>
         implements Serializable {
     static final long serialVersionUID=1L;
@@ -28,8 +23,7 @@ public class AutoCallProfileList extends ArrayList<AutoCallProfile>
 
     public static final int DEFAULT_PROFILE_ID = 1;
 
-    @Inject
-    public AutoCallProfileList(@ApplicationContext Context context) {
+    public AutoCallProfileList(Context context) {
         try {
             FileInputStream fis = context.openFileInput(LIST_FILE_NAME);
             AutoCallProfileList instance = SerializerFactory.getSerializer()

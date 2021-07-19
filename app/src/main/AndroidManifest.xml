@@ -73,6 +73,9 @@
             android:description="@string/app_name"
             android:enabled="true"
             android:exported="false" />
+        <service android:name=".services.UpgradeDataService"
+            android:enabled="true" android:exported="false" />
+        <activity android:name=".activities.UpgradeDataActivity" android:noHistory="true" />
 
         <receiver
             android:name=".services.AutoCallService$StopButtonListener"
@@ -116,7 +119,7 @@
             android:label="@string/title_activity_cities"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity android:name=".activities.EditCityActivity" />
-        <activity android:name=".activities.ShowCityPrayTimesActivity"></activity>
+        <activity android:name=".activities.ShowCityPrayTimesActivity" />
         <activity
             android:name=".activities.CallProfilesActivity"
             android:label="@string/activity_call_profiles"

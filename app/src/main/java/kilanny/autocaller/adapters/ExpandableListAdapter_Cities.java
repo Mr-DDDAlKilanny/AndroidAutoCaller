@@ -1,7 +1,6 @@
 package kilanny.autocaller.adapters;
 
 import android.content.Context;
-import android.content.DialogInterface;
 import android.graphics.Typeface;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,11 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import kilanny.autocaller.R;
-import kilanny.autocaller.data.City;
-import kilanny.autocaller.data.CityList;
-import kilanny.autocaller.data.ContactsList;
-import kilanny.autocaller.data.ContactsListGroup;
-import kilanny.autocaller.data.ContactsListGroupList;
+import kilanny.autocaller.db.AppDb;
 
 /**
  * Created by user on 12/6/2017.
@@ -30,13 +25,10 @@ public class ExpandableListAdapter_Cities extends BaseExpandableListAdapter {
     private List<String> _listDataHeader; // header titles
     // child data in format of header title, child title
     private HashMap<String, List<String>> _listDataChild;
-    private final CityList cities;
 
     public ExpandableListAdapter_Cities(Context context, List<String> listDataHeader,
-                                        HashMap<String, List<String>> listChildData,
-                                        CityList cityList) {
+                                        HashMap<String, List<String>> listChildData) {
         this._context = context;
-        cities = cityList;
         this._listDataHeader = listDataHeader;
         this._listDataChild = listChildData;
     }
@@ -106,32 +98,18 @@ public class ExpandableListAdapter_Cities extends BaseExpandableListAdapter {
         lblListHeader.setText(headerTitle);
 
         Button btn = (Button) convertView.findViewById(R.id.btnDeleteGroup);
-        btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                new androidx.appcompat.app.AlertDialog.Builder(_context)
-                        .setTitle(R.string.confirm_delete_group_title)
-                        .setMessage(R.string.confirm_delete_group_body)
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-
-                            public void onClick(DialogInterface dialog, int whichButton) {
-                                _listDataChild.remove(headerTitle);
-                                _listDataHeader.remove(headerTitle);
-                                ContactsListGroup remove = null;
-                                for (int i = cities.size() - 1; i >= 0; --i) {
-                                    City city = cities.get(i);
-                                    if (city.country.equals(headerTitle)) {
-                                        cities.remove(i);
-                                    }
-                                }
-                                cities.save(_context);
-                                notifyDataSetChanged();
-                            }})
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show();
-            }
-        });
+        btn.setOnClickListener(v -> new androidx.appcompat.app.AlertDialog.Builder(_context)
+                .setTitle(R.string.confirm_delete_group_title)
+                .setMessage(R.string.confirm_delete_group_body)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton(android.R.string.ok, (dialog, whichButton) -> {
+                    _listDataChild.remove(headerTitle);
+                    _listDataHeader.remove(headerTitle);
+                    AppDb.getInstance(_context).cityDao().deleteByCountry(headerTitle);
+                    notifyDataSetChanged();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show());
 
         return convertView;
     }

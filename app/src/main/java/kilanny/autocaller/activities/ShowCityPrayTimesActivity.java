@@ -12,40 +12,23 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import javax.inject.Inject;
-
 import kilanny.autocaller.App;
 import kilanny.autocaller.R;
 import kilanny.autocaller.data.City;
 import kilanny.autocaller.data.CityList;
-import kilanny.autocaller.di.ContextComponent;
-import kilanny.autocaller.di.ContextModule;
-import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.db.AppDb;
 import kilanny.autocaller.utils.PrayTimes;
 
 public class ShowCityPrayTimesActivity extends AppCompatActivity {
 
     private int cityId;
 
-    @Inject
-    CityList cityList;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_show_city_pray_times);
         cityId = getIntent().getIntExtra("cityId", 0);
-        ContextComponent contextComponent = DaggerContextComponent.builder()
-                .appComponent(App.get(this).getComponent())
-                .contextModule(new ContextModule(this))
-                .build();
-        contextComponent.inject(this);
-    }
-
-    @Override
-    protected void onPostCreate(@Nullable Bundle savedInstanceState) {
-        super.onPostCreate(savedInstanceState);
-        City city = cityList.findById(cityId);
+        City city = AppDb.getInstance(this).cityDao().find(cityId);
         getSupportActionBar().setTitle(city.country + " - " + city.name);
 
         Date now = new Date();

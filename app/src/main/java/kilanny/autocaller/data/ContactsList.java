@@ -10,6 +10,7 @@ import java.util.ArrayList;
 /**
  * Created by Yasser on 05/31/2016.
  */
+@Deprecated
 public class ContactsList extends ArrayList<ContactsListItem>
         implements Serializable {
 

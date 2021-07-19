@@ -12,9 +12,11 @@ import java.util.Date;
 /**
  * Created by Yasser on 06/10/2016.
  */
+@Deprecated
 public class AutoCallLog implements Serializable {
     public static final long serialVersionUID =-5262431042354907616L;
 
+    @Deprecated
     public static class AutoCallSession extends ArrayList<AutoCallItem>
             implements Serializable {
         static final long serialVersionUID=4100471386052040774L;
@@ -22,12 +24,15 @@ public class AutoCallLog implements Serializable {
         public Date date;
     }
 
+    @Deprecated
     public static abstract class AutoCallItem implements Serializable {
         static final long serialVersionUID=-6126351805320809037L;
     }
+    @Deprecated
     public static class AutoCallRetry extends AutoCallItem {
         static final long serialVersionUID=-2390267599795357233L;
     }
+    @Deprecated
     public static class AutoCall extends AutoCallItem {
         static final long serialVersionUID=5675691872497743035L;
 
@@ -39,6 +44,7 @@ public class AutoCallLog implements Serializable {
         public Date date;
         public int result;
     }
+    @Deprecated
     public static class AutoCallIgnored extends AutoCallItem {
         static final long serialVersionUID=1L;
         public static final byte RESULT_NOT_IGNORED = 0;
@@ -51,8 +57,10 @@ public class AutoCallLog implements Serializable {
     }
     private static AutoCallLog instance;
 
+    @Deprecated
     public final ArrayList<AutoCallSession> sessions = new ArrayList<>();
 
+    @Deprecated
     public static AutoCallLog readOld(Context context) throws IOException, ClassNotFoundException {
         FileInputStream fis = context.openFileInput("autolog");
         ObjectInputStream is = new ObjectInputStream(fis);

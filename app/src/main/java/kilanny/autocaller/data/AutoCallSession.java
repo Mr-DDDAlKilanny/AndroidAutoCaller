@@ -14,10 +14,11 @@ import java.util.Date;
 import java.util.HashSet;
 
 public final class AutoCallSession implements Serializable {
-    static final long serialVersionUID=1L;
+    static final long serialVersionUID=2L;
     private static final String FILE_NAME = "__AUTO_CALL_SESSION.dat";
 
-    public final int contactsListId;
+    public final long contactsListId;
+    public final long callSessionId;
     public final Date date;
 
     private transient Context context;
@@ -28,8 +29,9 @@ public final class AutoCallSession implements Serializable {
     private int listAutoRecallCount = 0;
     private final HashSet<String> ansOrRejectedNumbers = new HashSet<>();
 
-    public AutoCallSession(int contactsListId, Date date, Context context) {
+    public AutoCallSession(long contactsListId, long callSessionId, Date date, Context context) {
         this.contactsListId = contactsListId;
+        this.callSessionId = callSessionId;
         this.date = date;
         this.context = context;
     }

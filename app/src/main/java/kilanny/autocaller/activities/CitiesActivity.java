@@ -1,6 +1,5 @@
 package kilanny.autocaller.activities;
 
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -16,22 +15,13 @@ import androidx.databinding.DataBindingUtil;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import javax.inject.Inject;
-
-import kilanny.autocaller.App;
 import kilanny.autocaller.R;
 import kilanny.autocaller.adapters.ExpandableListAdapter_Cities;
 import kilanny.autocaller.data.City;
-import kilanny.autocaller.data.CityList;
-import kilanny.autocaller.data.ContactsList;
 import kilanny.autocaller.data.ContactsListItem;
-import kilanny.autocaller.data.ListOfCallingLists;
 import kilanny.autocaller.databinding.ActivityCitiesBinding;
-import kilanny.autocaller.di.ContextComponent;
-import kilanny.autocaller.di.ContextModule;
-import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.db.AppDb;
 import kilanny.autocaller.utils.AnalyticsTrackers;
 
 public class CitiesActivity extends AppCompatActivity {
@@ -41,10 +31,6 @@ public class CitiesActivity extends AppCompatActivity {
     private Animation fabCloseAnimation;
     private boolean isFabMenuOpen = false;
 
-    @Inject
-    CityList cities;
-    @Inject
-    ListOfCallingLists listOfCallingLists;
     ExpandableListAdapter_Cities listAdapter;
     ExpandableListView expListView;
     List<String> listDataHeader;
@@ -58,24 +44,20 @@ public class CitiesActivity extends AppCompatActivity {
         binding.setFabHandler(new CitiesActivityFabHandler());
 
         getAnimations();
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        ContextComponent contextComponent = DaggerContextComponent.builder()
-                .appComponent(App.get(this).getComponent())
-                .contextModule(new ContextModule(this))
-                .build();
-        contextComponent.inject(this);
         bindList();
     }
 
     private void bindList() {
         // get the listview
-        expListView = (ExpandableListView) findViewById(R.id.expList_cities);
+        expListView = findViewById(R.id.expList_cities);
 
         // preparing list data
         listDataHeader = new ArrayList<>();
         listDataChild = new HashMap<>();
+        City[] cities = AppDb.getInstance(this).cityDao().getAll();
         for (City city : cities) {
             if (!listDataHeader.contains(city.country)) {
                 listDataHeader.add(city.country);
@@ -87,57 +69,38 @@ public class CitiesActivity extends AppCompatActivity {
         }
 
         listAdapter = new ExpandableListAdapter_Cities(this,
-                listDataHeader, listDataChild, cities);
+                listDataHeader, listDataChild);
 
         // setting list adapter
         expListView.setAdapter(listAdapter);
 
-        expListView.setOnChildClickListener(new ExpandableListView.OnChildClickListener() {
-            @Override
-            public boolean onChildClick(ExpandableListView parent, View v,
-                                        final int groupPosition, final int childPosition, long id) {
-                new androidx.appcompat.app.AlertDialog.Builder(CitiesActivity.this)
-                        .setItems(R.array.city_item_options, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                String country = listDataHeader.get(groupPosition);
-                                String city = listDataChild.get(country)
-                                        .get(childPosition);
-                                switch (which) {
-                                    case 0:
-                                        startEditActivity(cities.findByName(country, city));
-                                        break;
-                                    case 1:
-                                        delete(country, city);
-                                        break;
-                                    case 2: {
-                                        Intent i = new Intent(
-                                                CitiesActivity.this, ShowCityPrayTimesActivity.class);
-                                        i.putExtra("cityId", cities.findByName(country, city).id);
-                                        startActivity(i);
-                                    }
-                                        break;
-                                }
+        expListView.setOnChildClickListener((parent, v, groupPosition, childPosition, id) -> {
+            new androidx.appcompat.app.AlertDialog.Builder(CitiesActivity.this)
+                    .setItems(R.array.city_item_options, (dialog, which) -> {
+                        String country = listDataHeader.get(groupPosition);
+                        String city = listDataChild.get(country)
+                                .get(childPosition);
+                        switch (which) {
+                            case 0:
+                                startEditActivity(AppDb.getInstance(this).cityDao()
+                                        .findByName(country, city));
+                                break;
+                            case 1:
+                                delete(country, city);
+                                break;
+                            case 2: {
+                                Intent i = new Intent(
+                                        CitiesActivity.this, ShowCityPrayTimesActivity.class);
+                                i.putExtra("cityId", AppDb.getInstance(this).cityDao()
+                                        .findByName(country, city).id);
+                                startActivity(i);
                             }
-                        })
-                        .show();
-                return true;
-            }
+                                break;
+                        }
+                    })
+                    .show();
+            return true;
         });
-    }
-
-    private Map<String, String> getCityContacts(int cityId) {
-        Map<String, String> result = new HashMap<>();
-        for (int i = 0; i < listOfCallingLists.size(); ++i) {
-            ContactsList list = listOfCallingLists.get(i);
-            for (int j = 0; j < list.size(); ++j) {
-                ContactsListItem item = list.get(j);
-                if (item.cityId != null && item.cityId == cityId
-                        && !result.containsKey(item.number))
-                    result.put(item.number, item.name);
-            }
-        }
-        return result;
     }
 
     private void delete(final String country, final String city) {
@@ -145,33 +108,30 @@ public class CitiesActivity extends AppCompatActivity {
                 .setTitle(R.string.dlg_deleteCity_title)
                 .setIcon(android.R.drawable.ic_dialog_alert)
                 .setMessage(R.string.dlg_deleteCity_msg)
-                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        final City c = cities.findByName(country, city);
-                        Map<String, String> cityContacts = getCityContacts(c.id);
-                        if (cityContacts.size() == 0){
-                            cities.remove(c);
-                            cities.save(CitiesActivity.this);
-                            AnalyticsTrackers.getInstance(CitiesActivity.this)
-                                    .logDeleteCity(true);
-                            bindList();
-                        } else {
-                            StringBuilder numbers = new StringBuilder("\n");
-                            for (String number : cityContacts.keySet()) {
-                                numbers.append(number)
-                                        .append(" ")
-                                        .append(cityContacts.get(number))
-                                        .append("\n");
-                            }
-                            new androidx.appcompat.app.AlertDialog.Builder(CitiesActivity.this)
-                                    .setTitle(R.string.dlg_deleteCity_title)
-                                    .setIcon(android.R.drawable.ic_dialog_alert)
-                                    .setMessage(getString(R.string.dlg_deleteCity_failed_msg) + numbers)
-                                    .show();
-                            AnalyticsTrackers.getInstance(CitiesActivity.this)
-                                    .logDeleteCity(false);
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    final City c = AppDb.getInstance(this).cityDao().findByName(country, city);
+                    ContactsListItem[] cityContacts = AppDb.getInstance(this).contactDao()
+                            .getByCityId(c.id);
+                    if (cityContacts.length == 0) {
+                        AppDb.getInstance(this).cityDao().delete(c);
+                        AnalyticsTrackers.getInstance(CitiesActivity.this)
+                                .logDeleteCity(true);
+                        bindList();
+                    } else {
+                        StringBuilder numbers = new StringBuilder("\n");
+                        for (ContactsListItem item : cityContacts) {
+                            numbers.append(item.number)
+                                    .append(" ")
+                                    .append(item.name)
+                                    .append("\n");
                         }
+                        new androidx.appcompat.app.AlertDialog.Builder(CitiesActivity.this)
+                                .setTitle(R.string.dlg_deleteCity_title)
+                                .setIcon(android.R.drawable.ic_dialog_alert)
+                                .setMessage(getString(R.string.dlg_deleteCity_failed_msg) + numbers)
+                                .show();
+                        AnalyticsTrackers.getInstance(CitiesActivity.this)
+                                .logDeleteCity(false);
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
@@ -225,8 +185,12 @@ public class CitiesActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 0 && resultCode == RESULT_OK) {
             City city = City.getCityFromIntent(data);
-            cities.findById(city.id).setFrom(city);
-            cities.save(this);
+            City db = AppDb.getInstance(this).cityDao().find(city.id);
+            if (db != null) {
+                db.setFrom(city);
+                AppDb.getInstance(this).cityDao().update(db);
+            } else
+                city.id = (int) AppDb.getInstance(this).cityDao().insert(city);
             bindList();
         }
     }

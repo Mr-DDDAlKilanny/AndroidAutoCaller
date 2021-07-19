@@ -10,7 +10,6 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -30,7 +29,6 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.Process;
-import android.preference.PreferenceManager;
 import android.provider.CallLog;
 import android.telecom.TelecomManager;
 import android.telephony.TelephonyManager;
@@ -46,9 +44,11 @@ import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.AlarmManagerCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.preference.PreferenceManager;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -61,26 +61,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import javax.inject.Inject;
-
 import kilanny.autocaller.App;
+import kilanny.autocaller.R;
+import kilanny.autocaller.activities.MainActivity;
 import kilanny.autocaller.data.AutoCallLog;
 import kilanny.autocaller.data.AutoCallProfile;
 import kilanny.autocaller.data.AutoCallProfileList;
 import kilanny.autocaller.data.AutoCallSession;
 import kilanny.autocaller.data.City;
-import kilanny.autocaller.data.CityList;
-import kilanny.autocaller.di.ContextComponent;
-import kilanny.autocaller.di.ContextModule;
-import kilanny.autocaller.di.DaggerContextComponent;
+import kilanny.autocaller.db.AppDb;
+import kilanny.autocaller.db.CallSession;
+import kilanny.autocaller.db.CallSessionItem;
+import kilanny.autocaller.db.ContactInGroup;
+import kilanny.autocaller.db.ContactListItem2;
 import kilanny.autocaller.intents.AutoCallPhoneStateListener;
-import kilanny.autocaller.data.ContactsList;
-import kilanny.autocaller.data.ContactsListGroup;
-import kilanny.autocaller.data.ContactsListGroupList;
-import kilanny.autocaller.data.ContactsListItem;
-import kilanny.autocaller.data.ListOfCallingLists;
-import kilanny.autocaller.activities.MainActivity;
-import kilanny.autocaller.R;
 import kilanny.autocaller.utils.AnalyticsTrackers;
 import kilanny.autocaller.utils.PrayTimes;
 import kilanny.autocaller.utils.TextUtils;
@@ -100,12 +94,6 @@ public class AutoCallService extends Service {
     //private static final int NO_REPLY_TIMEOUT_SECONDS = 30 + WAIT_BETWEEN_CALLS_SECONDS;
     //private static final int KILL_CALL_AFTER_SECONDS = NO_REPLY_TIMEOUT_SECONDS + 35;
 
-    @Inject
-    ListOfCallingLists listOfCallingLists;
-    @Inject
-    CityList cityList;
-    @Inject
-    AutoCallProfileList profileList;
     private NotificationManager mNM;
     private NotificationCompat.Builder notificationBuilder;
     private AtomicBoolean canMakeCalls, isPaused;
@@ -124,11 +112,11 @@ public class AutoCallService extends Service {
     private int lastCallState = -1;
     private final Map<Integer, Pair<Integer, Integer>> cachedCitiesTimes = new HashMap<>();
 
-    private AutoCallLog.AutoCallSession currentSession;
-    private ContactsList list;
+    private long mCallListId, mCallSessionId;
     private Timer autoHangupTimer, phoneAppCrashNotificationTimer;
     static MediaPlayer mediaPlayer;
     private PowerManager.WakeLock mWakeLock;
+    private ContactListItem2[] mItems;
 
     /**
      * Handler of incoming messages from clients.
@@ -265,13 +253,8 @@ public class AutoCallService extends Service {
         PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, getClass().getName());
         mWakeLock.setReferenceCounted(false);
-        ContextComponent contextComponent = DaggerContextComponent.builder()
-                .appComponent(App.get(this).getComponent())
-                .contextModule(new ContextModule(this))
-                .build();
-        contextComponent.inject(this);
         _lastInstance = this;
-        runOnUiThreadHandler = new Handler();
+        runOnUiThreadHandler = new Handler(Looper.getMainLooper());
 
         initNotification();
         startForeground(NOTIFICATION_ID, notificationBuilder.getNotification());
@@ -308,8 +291,8 @@ public class AutoCallService extends Service {
                     App app = App.get(AutoCallService.this);
                     if (app.verifiedByOutgoingReceiver) {
                         app.lastOutgoingCallStartRinging = new Date();
-                        runKillAutoCallTask(profileList.findById(app.lastNumberCallProfileId)
-                                .killCallAfterSeconds);
+                        runKillAutoCallTask(AppDb.getInstance(AutoCallService.this).callProfileDao()
+                                .find(app.lastNumberCallProfileId).killCallAfterSeconds);
                         // maybe the phone will crash also when the outgoing call OFFHOOK,
                         // so when need to schedule again to reset the period
                         // because the OFFHOOK may come late after callNumber().
@@ -332,37 +315,31 @@ public class AutoCallService extends Service {
         if (intent == null) {
             return START_NOT_STICKY;
         }
-        int callListId;
-        boolean isNewSession = false;
         if (intent.getBooleanExtra("continueLastSession", false)) {
             callSession = AutoCallSession.getLastSession(this);
-            callListId = callSession.contactsListId;
-            list = listOfCallingLists.getById(callListId);
-            currentSession = list.getLog().sessions.get(list.getLog().sessions.size() - 1);
+            mCallListId = callSession.contactsListId;
+            mCallSessionId = callSession.callSessionId;
         } else {
-            callListId = intent.getIntExtra("callListId", -1);
-            list = listOfCallingLists.getById(callListId);
-            callSession = new AutoCallSession(callListId, new Date(), this);
-            isNewSession = true;
+            mCallListId = intent.getLongExtra("callListId", -1);
+            CallSession s = new CallSession();
+            s.date = new Date().getTime();
+            s.listId = mCallListId;
+            mCallSessionId = AppDb.getInstance(this).callSessionDao().insert(s);
+            callSession = new AutoCallSession(mCallListId, mCallSessionId, new Date(), this);
 
             String ignoredNumbers = intent.getStringExtra("ignoreNumbers");
             if (ignoredNumbers != null && ignoredNumbers.trim().length() > 0)
                 for (String number : ignoredNumbers.split(","))
                     callSession.addNumberToRejectersList(number);
         }
+        mItems = AppDb.getInstance(this).contactInListDao().getByListId(mCallListId);
         callSession.setStarted(false);
-        if (isNewSession) {
-            currentSession = new AutoCallLog.AutoCallSession();
-            currentSession.date = new Date();
-            list.getLog().sessions.add(currentSession);
-            list.save(this);
-        }
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
         pref_cityBasedRingEnabled = pref.getBoolean("cityBasedRingEnabled", true);
-        pref_autoRecallListNo = Integer.parseInt(pref.getString(
-                "autoRecallListNo", getString(R.string.auto_recall_count_array_default_value)));
+        pref_autoRecallListNo = Integer.parseInt(pref.getString("autoRecallListNo", getString(R.string.auto_recall_count_array_default_value)));
         myTimezoneOffset = TimeZone.getDefault().getOffset(new Date().getTime());
-        updateNotificationTextView(R.id.callListName, list.getName());
+        updateNotificationTextView(R.id.callListName,
+                AppDb.getInstance(this).contactListDao().find(mCallListId).name);
 
         canMakeCalls = new AtomicBoolean(true);
         isPaused = new AtomicBoolean(false);
@@ -425,7 +402,8 @@ public class AutoCallService extends Service {
                         AnalyticsTrackers.getInstance(this).logRingContactAnsweredRejected();
                         return true;
                     case CallLog.Calls.OUTGOING_TYPE: {
-                        AutoCallProfile profile = profileList.findById(callProfileId);
+                        AutoCallProfile profile = AppDb.getInstance(this).callProfileDao()
+                                .find(callProfileId);
                         if (Integer.parseInt(callDuration) > 0 || diffSeconds < profile.noReplyTimeoutSeconds) {
                             Log.d("CALL_CHECK", "true: callDuration = " + callDuration
                                     + ", diffSeconds = " + diffSeconds);
@@ -448,12 +426,16 @@ public class AutoCallService extends Service {
         }
     }
 
-    private boolean numberInRejectedNumbers(ContactsListGroupList groups, String number) {
-        for (ContactsListGroup g : groups) // search in all groups
-            if (g.contacts.containsKey(number)) //which I'm member of
-                for (String num : g.contacts.keySet()) //search all members of that group
-                    if (callSession.containsNumberInRejectersList(num)) //if someone already rejected
-                        return true;
+    private boolean numberInRejectedNumbers(long contactId) {
+        ContactInGroup[] groups = AppDb.getInstance(this).contactInGroupDao()
+                .getByContactId(contactId);
+        for (ContactInGroup g : groups) { // search in my groups
+            if (Arrays.stream(AppDb.getInstance(this).contactInGroupDao()
+                    .getNumbersByGroupId(g.groupId))
+                    .anyMatch(c -> callSession.containsNumberInRejectersList(c.number))) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -502,24 +484,14 @@ public class AutoCallService extends Service {
             telephonyEndCall.invoke(telephonyObject);
 
             Log.i("terminateActiveCall", "Successfully terminated current call");
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(AutoCallService.this, R.string.automatically_terminated_call,
-                            Toast.LENGTH_LONG).show();
-                }
-            });
+            runOnUiThread(() -> Toast.makeText(AutoCallService.this, R.string.automatically_terminated_call,
+                    Toast.LENGTH_LONG).show());
             return lastCallTerminatedByApp = true;
         } catch (Exception e) {
             e.printStackTrace();
             Log.e("OutgoingCallReceiver", "Exception object: " + e);
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(AutoCallService.this, R.string.automatic_terminate_call_failed,
-                            Toast.LENGTH_LONG).show();
-                }
-            });
+            runOnUiThread(() -> Toast.makeText(AutoCallService.this, R.string.automatic_terminate_call_failed,
+                    Toast.LENGTH_LONG).show());
             return false;
         }
     }
@@ -618,21 +590,11 @@ public class AutoCallService extends Service {
                     TelecomManager mgr = (TelecomManager) getSystemService(TELECOM_SERVICE);
                     lastCallTerminatedByApp = mgr.endCall();
                     if (lastCallTerminatedByApp) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(AutoCallService.this, R.string.automatically_terminated_call,
-                                        Toast.LENGTH_LONG).show();
-                            }
-                        });
+                        runOnUiThread(() -> Toast.makeText(AutoCallService.this, R.string.automatically_terminated_call,
+                                Toast.LENGTH_LONG).show());
                     } else {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(AutoCallService.this, R.string.automatic_terminate_call_failed,
-                                        Toast.LENGTH_LONG).show();
-                            }
-                        });
+                        runOnUiThread(() -> Toast.makeText(AutoCallService.this, R.string.automatic_terminate_call_failed,
+                                Toast.LENGTH_LONG).show());
                     }
                 }
             }
@@ -640,15 +602,15 @@ public class AutoCallService extends Service {
     }
 
     private void updateLastCallResult(boolean ans) {
+        CallSessionItem last = AppDb.getInstance(this).callSessionItemDao().getLast();
         //ignore the first result when retry calls has been chosen
-        if (currentSession.get(currentSession.size() - 1)
-                instanceof AutoCallLog.AutoCall) {
+        if (last.contactId != null && last.result != null && last.result == 0) {
             Log.d("AutoCallItem", "calling result: " + ans
                     + ", index = " + callSession.getListCurrentCallItemIdx()
                     + ", count = " + callSession.getListCurrentCallItemCount());
-            ((AutoCallLog.AutoCall) currentSession.get(currentSession.size() - 1)).result = ans ?
-                    AutoCallLog.AutoCall.RESULT_ANSWERED_OR_REJECTED :
-                    AutoCallLog.AutoCall.RESULT_NOT_ANSWERED;
+            last.result = ans ? CallSessionItem.RESULT_ANSWERED_OR_REJECTED :
+                    CallSessionItem.RESULT_NOT_ANSWERED;
+            AppDb.getInstance(this).callSessionItemDao().updateResult(last.id, last.result);
         }
     }
 
@@ -659,194 +621,170 @@ public class AutoCallService extends Service {
             cancelCallHangupTimer(true);
             // call after 1 seconds, to enable the phone to update the call log
             // for the last call
-            Executors.newSingleThreadScheduledExecutor().schedule(new Runnable() {
-                @Override
-                public void run() {
-                    ContactsListGroupList groups = list.getGroups();
+            Executors.newSingleThreadScheduledExecutor().schedule(() -> {
+                try {
+                    boolean ans = false;
+                    boolean finished = false;
+                    App app = App.get(AutoCallService.this);
+                    if (!app.verifiedByOutgoingReceiver || !callSession.isStarted())
+                        return; // stopped by user
+                    ContactListItem2 listItem = mItems[callSession.getListCurrentCallItemIdx()];
                     try {
-                        boolean ans = false;
-                        boolean finished = false;
-                        App app = App.get(AutoCallService.this);
-                        if (!app.verifiedByOutgoingReceiver || !callSession.isStarted())
-                            return; // stopped by user
-                        ContactsListItem listItem = list.get(callSession.getListCurrentCallItemIdx());
-                        try {
-                            // check even the current number, maybe sunrised and cannot inc count
-                            if ((!lastCallTerminatedByApp && (ans = hasRejectedOrAnsweredOutgoingCall(listItem.number, app.lastNumberCallProfileId)))
-                                    || (listItem.cityId != null && getCanCallStatus(listItem.cityId) != AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED)
-                                    || 1 + callSession.getListCurrentCallItemCount() > listItem.callCount) {
+                        // check even the current number, maybe sunrised and cannot inc count
+                        if ((!lastCallTerminatedByApp && (ans = hasRejectedOrAnsweredOutgoingCall(listItem.number, app.lastNumberCallProfileId)))
+                                || (listItem.cityId != null && getCanCallStatus(listItem.cityId) != AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED)
+                                || 1 + callSession.getListCurrentCallItemCount() > listItem.callCount) {
 
-                                if (ans)
-                                    callSession.addNumberToRejectersList(listItem.number);
+                            if (ans)
+                                callSession.addNumberToRejectersList(listItem.number);
 
+                            callSession.incrementListCurrentCallItemIdx();
+                            callSession.setListCurrentCallItemCount(1);
+
+                            while (callSession.getListCurrentCallItemIdx() < mItems.length) {
+                                listItem = mItems[callSession.getListCurrentCallItemIdx()];
+                                if (!callSession.containsNumberInRejectersList(listItem.number)
+                                        && !numberInRejectedNumbers(listItem.id)) {
+                                    byte canCall = listItem.cityId != null ? getCanCallStatus(listItem.cityId)
+                                            : AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
+                                    if (canCall != AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED) {
+                                        updateLastCallResult(ans);
+                                        addSessionIgnoredCall(new Date(), listItem.id, canCall);
+                                    } else break;
+                                }
                                 callSession.incrementListCurrentCallItemIdx();
-                                callSession.setListCurrentCallItemCount(1);
-
-                                while (callSession.getListCurrentCallItemIdx() < list.size()) {
-                                    listItem = list.get(callSession.getListCurrentCallItemIdx());
-                                    if (!callSession.containsNumberInRejectersList(listItem.number)
-                                            && !numberInRejectedNumbers(groups, listItem.number)) {
-                                        byte canCall = listItem.cityId != null ? getCanCallStatus(listItem.cityId)
-                                                : AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
-                                        if (canCall != AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED) {
-                                            updateLastCallResult(ans);
-                                            addSessionIgnoredCall(new Date(), listItem.name, listItem.number, canCall);
-                                        } else break;
-                                    }
-                                    callSession.incrementListCurrentCallItemIdx();
-                                }
-                                if (callSession.getListCurrentCallItemIdx() >= list.size()) {
-                                    finished = true;
-                                    return;
-                                }
-                            } else
-                                callSession.incrementListCurrentCallItemCount();
-                        } finally {
-                            updateLastCallResult(ans);
-                            if (finished) {
-                                int firstNotAnsweredIdx = -1;
-                                boolean allBeforeFajr = true;
-                                String minFajrTime = null;
-                                for (int i = 0; i < list.size(); ++i) {
-                                    listItem = list.get(i);
-                                    if (!callSession.containsNumberInRejectersList(listItem.number)
-                                            && !numberInRejectedNumbers(groups, listItem.number)) {
-                                        byte canCall = listItem.cityId != null ? getCanCallStatus(listItem.cityId)
-                                                : AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
-                                        if (canCall != AutoCallLog.AutoCallIgnored.RESULT_IGNORED_AFTER_SUNRISE) {
-                                            if (firstNotAnsweredIdx == -1)
-                                                firstNotAnsweredIdx = i;
-                                            if (canCall == AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED)
-                                                allBeforeFajr = false;
-                                            else {
-                                                String time = getFajrTime(listItem.cityId);
-                                                if (minFajrTime == null || minFajrTime.compareTo(time) > 0)
-                                                    minFajrTime = time;
-                                            }
+                            }
+                            if (callSession.getListCurrentCallItemIdx() >= mItems.length) {
+                                finished = true;
+                                return;
+                            }
+                        } else
+                            callSession.incrementListCurrentCallItemCount();
+                    } finally {
+                        updateLastCallResult(ans);
+                        if (finished) {
+                            int firstNotAnsweredIdx = -1;
+                            boolean allBeforeFajr = true;
+                            String minFajrTime = null;
+                            for (int i = 0; i < mItems.length; ++i) {
+                                listItem = mItems[i];
+                                if (!callSession.containsNumberInRejectersList(listItem.number)
+                                        && !numberInRejectedNumbers(listItem.id)) {
+                                    byte canCall = listItem.cityId != null ? getCanCallStatus(listItem.cityId)
+                                            : AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
+                                    if (canCall != CallSessionItem.RESULT_IGNORED_AFTER_SUNRISE) {
+                                        if (firstNotAnsweredIdx == -1)
+                                            firstNotAnsweredIdx = i;
+                                        if (canCall == AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED)
+                                            allBeforeFajr = false;
+                                        else {
+                                            String time = getFajrTime(listItem.cityId);
+                                            if (minFajrTime == null || minFajrTime.compareTo(time) > 0)
+                                                minFajrTime = time;
                                         }
                                     }
-                                }
-                                if (firstNotAnsweredIdx >= 0) {
-                                    final int tmpIdx = firstNotAnsweredIdx;
-                                    final Runnable recallRunnable = new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            pendingRecallRunnable = null;
-                                            callSession.setListCurrentCallItemCount(0);
-                                            callSession.setListCurrentCallItemIdx(tmpIdx);
-                                            currentSession.add(new AutoCallLog.AutoCallRetry());
-                                            list.save(AutoCallService.this);
-                                            aquireWakeLock();
-                                            nextCall();
-                                        }
-                                    };
-                                    if (pref_autoRecallListNo > callSession.getListAutoRecallCount()) {
-                                        callSession.setListAutoRecallCount(
-                                                callSession.getListAutoRecallCount() + 1);
-                                        recallRunnable.run();
-                                    } else {
-                                        final boolean _allBeforeFajr = allBeforeFajr;
-                                        final String _minFajr = minFajrTime;
-                                        runOnUiThread(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                AlertDialog dlg;
-                                                releaseWakeLock();
-                                                if (_allBeforeFajr) {
-                                                    dlg = new AlertDialog.Builder(getApplicationContext())
-                                                            .setTitle(R.string.some_not_answered_title)
-                                                            .setCancelable(false)
-                                                            .setMessage(String.format(getString(R.string.all_before_fajr_message), _minFajr))
-                                                            .setIcon(android.R.drawable.ic_dialog_info)
-                                                            .setPositiveButton(R.string.retry_now, new DialogInterface.OnClickListener() {
-
-                                                                public void onClick(DialogInterface dialog, int whichButton) {
-                                                                    stopFinishRingtone();
-                                                                    recallRunnable.run();
-                                                                }
-                                                            })
-                                                            .setNeutralButton(R.string.schedule_recall, new DialogInterface.OnClickListener() {
-                                                                @Override
-                                                                public void onClick(DialogInterface dialog, int which) {
-                                                                    stopFinishRingtone();
-                                                                    updateNotificationTextView(R.id.currentCallee, getString(R.string.waiting_fajr));
-                                                                    Time dtNow = new Time();
-                                                                    dtNow.setToNow();
-                                                                    int currentTime = dtNow.hour * 60 + dtNow.minute;
-                                                                    String sTime[] = _minFajr.split(":");
-                                                                    int nextTime = Integer.parseInt(sTime[0]) * 60 +
-                                                                            Integer.parseInt(sTime[1]);
-                                                                    long time = (nextTime - currentTime + 1) * 60 * 1000;
-                                                                    time += new Date().getTime();
-                                                                    AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-                                                                    Intent intentToFire = new Intent(AutoCallService.this,
-                                                                            AlarmBroadCastReceiver.class);
-                                                                    pendingRecallRunnable = recallRunnable;
-                                                                    AlarmManagerCompat.setExactAndAllowWhileIdle(alarmManager,
-                                                                            AlarmManager.RTC_WAKEUP, time,
-                                                                            PendingIntent.getBroadcast(AutoCallService.this,
-                                                                                    1, intentToFire, PendingIntent.FLAG_UPDATE_CURRENT));
-                                                                    Log.v("schNext", "Scheduled next alarm at " + new Date(time));
-                                                                }
-                                                            })
-                                                            .setNegativeButton(R.string.stop_calls, new DialogInterface.OnClickListener() {
-                                                                @Override
-                                                                public void onClick(DialogInterface dialog, int which) {
-                                                                    stopFinishRingtone();
-                                                                    stopAutoCall(true);
-                                                                }
-                                                            }).create();
-                                                } else {
-                                                    AnalyticsTrackers.getInstance(AutoCallService.this)
-                                                            .logRingMaxCountList();
-                                                    dlg = new AlertDialog.Builder(getApplicationContext())
-                                                            .setTitle(R.string.some_not_answered_title)
-                                                            .setCancelable(false)
-                                                            .setMessage(R.string.some_not_answered_body)
-                                                            .setIcon(android.R.drawable.ic_dialog_info)
-                                                            .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-
-                                                                public void onClick(DialogInterface dialog, int whichButton) {
-                                                                    stopFinishRingtone();
-                                                                    recallRunnable.run();
-                                                                    AnalyticsTrackers.getInstance(AutoCallService.this)
-                                                                            .logRingRepeatList();
-                                                                }
-                                                            })
-                                                            .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-                                                                @Override
-                                                                public void onClick(DialogInterface dialog, int which) {
-                                                                    stopFinishRingtone();
-                                                                    stopAutoCall(true);
-                                                                }
-                                                            }).create();
-                                                }
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                    dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
-                                                } else {
-                                                    dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
-                                                }
-                                                dlg.show();
-                                                playFinishTuneIfRequired();
-                                            }
-                                        });
-                                    }
-                                } else {
-                                    playFinishTuneIfRequired();
-                                    stopAutoCall(true);
                                 }
                             }
+                            if (firstNotAnsweredIdx >= 0) {
+                                final int tmpIdx = firstNotAnsweredIdx;
+                                final Runnable recallRunnable = () -> {
+                                    pendingRecallRunnable = null;
+                                    callSession.setListCurrentCallItemCount(0);
+                                    callSession.setListCurrentCallItemIdx(tmpIdx);
+                                    CallSessionItem callSessionItem = new CallSessionItem();
+                                    callSessionItem.callSessionId = mCallSessionId;
+                                    AppDb.getInstance(this).callSessionItemDao().insert(callSessionItem);
+                                    aquireWakeLock();
+                                    nextCall();
+                                };
+                                if (pref_autoRecallListNo > callSession.getListAutoRecallCount()) {
+                                    callSession.setListAutoRecallCount(
+                                            callSession.getListAutoRecallCount() + 1);
+                                    recallRunnable.run();
+                                } else {
+                                    final boolean _allBeforeFajr = allBeforeFajr;
+                                    final String _minFajr = minFajrTime;
+                                    runOnUiThread(() -> {
+                                        AlertDialog dlg;
+                                        releaseWakeLock();
+                                        if (_allBeforeFajr) {
+                                            dlg = new AlertDialog.Builder(getApplicationContext())
+                                                    .setTitle(R.string.some_not_answered_title)
+                                                    .setCancelable(false)
+                                                    .setMessage(String.format(getString(R.string.all_before_fajr_message), _minFajr))
+                                                    .setIcon(android.R.drawable.ic_dialog_info)
+                                                    .setPositiveButton(R.string.retry_now, (dialog, whichButton) -> {
+                                                        stopFinishRingtone();
+                                                        recallRunnable.run();
+                                                    })
+                                                    .setNeutralButton(R.string.schedule_recall, (dialog, which) -> {
+                                                        stopFinishRingtone();
+                                                        updateNotificationTextView(R.id.currentCallee, getString(R.string.waiting_fajr));
+                                                        Time dtNow = new Time();
+                                                        dtNow.setToNow();
+                                                        int currentTime = dtNow.hour * 60 + dtNow.minute;
+                                                        String sTime[] = _minFajr.split(":");
+                                                        int nextTime = Integer.parseInt(sTime[0]) * 60 +
+                                                                Integer.parseInt(sTime[1]);
+                                                        long time = (nextTime - currentTime + 1) * 60 * 1000;
+                                                        time += new Date().getTime();
+                                                        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                                                        Intent intentToFire = new Intent(AutoCallService.this,
+                                                                AlarmBroadCastReceiver.class);
+                                                        pendingRecallRunnable = recallRunnable;
+                                                        AlarmManagerCompat.setExactAndAllowWhileIdle(alarmManager,
+                                                                AlarmManager.RTC_WAKEUP, time,
+                                                                PendingIntent.getBroadcast(AutoCallService.this,
+                                                                        1, intentToFire, PendingIntent.FLAG_UPDATE_CURRENT));
+                                                        Log.v("schNext", "Scheduled next alarm at " + new Date(time));
+                                                    })
+                                                    .setNegativeButton(R.string.stop_calls, (dialog, which) -> {
+                                                        stopFinishRingtone();
+                                                        stopAutoCall(true);
+                                                    }).create();
+                                        } else {
+                                            AnalyticsTrackers.getInstance(AutoCallService.this)
+                                                    .logRingMaxCountList();
+                                            dlg = new AlertDialog.Builder(getApplicationContext())
+                                                    .setTitle(R.string.some_not_answered_title)
+                                                    .setCancelable(false)
+                                                    .setMessage(R.string.some_not_answered_body)
+                                                    .setIcon(android.R.drawable.ic_dialog_info)
+                                                    .setPositiveButton(android.R.string.yes, (dialog, whichButton) -> {
+                                                        stopFinishRingtone();
+                                                        recallRunnable.run();
+                                                        AnalyticsTrackers.getInstance(AutoCallService.this)
+                                                                .logRingRepeatList();
+                                                    })
+                                                    .setNegativeButton(android.R.string.no, (dialog, which) -> {
+                                                        stopFinishRingtone();
+                                                        stopAutoCall(true);
+                                                    }).create();
+                                        }
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                            dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
+                                        } else {
+                                            dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+                                        }
+                                        dlg.show();
+                                        playFinishTuneIfRequired();
+                                    });
+                                }
+                            } else {
+                                playFinishTuneIfRequired();
+                                stopAutoCall(true);
+                            }
                         }
-                        listItem = list.get(callSession.getListCurrentCallItemIdx());
-                        Integer profile = listItem.callProfileId;
-                        if (profile == null)
-                            profile = AutoCallProfileList.DEFAULT_PROFILE_ID;
-                        callNumber(listItem.number, listItem.name, callSession.getListCurrentCallItemCount(),
-                                listItem.callCount, profile);
-                    } catch (Exception ex) { //prevent phone app crash
-                        ex.printStackTrace();
-                        onFatalError(ex);
                     }
+                    listItem = mItems[callSession.getListCurrentCallItemIdx()];
+                    Integer profile = listItem.callProfileId;
+                    if (profile == null)
+                        profile = AutoCallProfileList.DEFAULT_PROFILE_ID;
+                    callNumber(listItem.id, listItem.number, listItem.name,
+                            callSession.getListCurrentCallItemCount(), listItem.callCount, profile);
+                } catch (Exception ex) { //prevent phone app crash
+                    ex.printStackTrace();
+                    onFatalError(ex);
                 }
             }, WAIT_BETWEEN_CALLS_SECONDS, TimeUnit.SECONDS);
         } else
@@ -859,12 +797,9 @@ public class AutoCallService extends Service {
                 .setCancelable(false)
                 .setMessage(R.string.fatal_exception_dlg_msg + "\n" + ex)
                 .setIcon(android.R.drawable.ic_dialog_alert)
-                .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-
-                    public void onClick(DialogInterface dialog, int whichButton) {
-                        stopFinishRingtone();
-                        stopAutoCall(true);
-                    }
+                .setPositiveButton(android.R.string.ok, (dialog, whichButton) -> {
+                    stopFinishRingtone();
+                    stopAutoCall(true);
                 })
                 .create();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -909,11 +844,6 @@ public class AutoCallService extends Service {
         app.lastCallNumber = null;
         app.verifiedByOutgoingReceiver = false;
         app.lastNumberCallProfileId = 0;
-        if (list != null) {
-            list.save(this);
-            list = null;
-        }
-        currentSession = null;
         callSession = null;
         cachedCitiesTimes.clear();
         AnalyticsTrackers.getInstance(this).logRingStop();
@@ -923,28 +853,27 @@ public class AutoCallService extends Service {
         }
     }
 
-    private void addSessionIgnoredCall(Date date, String name, String number, byte result) {
-        AutoCallLog.AutoCallIgnored autoCall = new AutoCallLog.AutoCallIgnored();
-        autoCall.date = date;
-        autoCall.name = name;
-        autoCall.number = number;
-        autoCall.result = result;
-        currentSession.add(autoCall);
-        list.save(this);
+    private void addSessionIgnoredCall(Date date, long contactId, byte result) {
+        CallSessionItem callSessionItem = new CallSessionItem();
+        callSessionItem.callSessionId = mCallSessionId;
+        callSessionItem.date = date.getTime();
+        callSessionItem.contactId = contactId;
+        callSessionItem.result = (int) result;
+        AppDb.getInstance(this).callSessionItemDao().insert(callSessionItem);
         AnalyticsTrackers.getInstance(this).logRingIgnoredContactBeforeFajrAfterSunrise();
     }
 
-    private void addSessionCall(Date date, String name, String number) {
-        AutoCallLog.AutoCall autoCall = new AutoCallLog.AutoCall();
-        autoCall.date = date;
-        autoCall.name = name;
-        autoCall.number = number;
-        currentSession.add(autoCall);
-        list.save(this);
+    private void addSessionCall(Date date, long contactId) {
+        CallSessionItem callSessionItem = new CallSessionItem();
+        callSessionItem.callSessionId = mCallSessionId;
+        callSessionItem.date = date.getTime();
+        callSessionItem.contactId = contactId;
+        callSessionItem.result = CallSessionItem.RESULT_UNKNOWN;
+        AppDb.getInstance(this).callSessionItemDao().insert(callSessionItem);
     }
 
-    private void callNumber(String number, String name, int currentCallCount, int totalCallCount,
-                            int callProfileId) {
+    private void callNumber(long contactId, String number, String name, int currentCallCount,
+                            int totalCallCount, int callProfileId) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE)
                     != PackageManager.PERMISSION_GRANTED) {
@@ -971,7 +900,7 @@ public class AutoCallService extends Service {
         callIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         callIntent.setData(Uri.parse("tel:" + number));
         startActivity(callIntent);
-        addSessionCall(new Date(), name, number);
+        addSessionCall(new Date(), contactId);
         AnalyticsTrackers.getInstance(this).logRingContact();
     }
 
@@ -994,7 +923,7 @@ public class AutoCallService extends Service {
             fajr = pair.first;
             sun = pair.second;
         } else {
-            City city = cityList.findById(cityId);
+            City city = AppDb.getInstance(this).cityDao().find(cityId);
             Date now = new Date();
             int timeZoneOffset = 1000 * 60 * 60 * city.timezone;
             TimeZone timeZone = TimeZone.getTimeZone(TimeZone.getAvailableIDs(timeZoneOffset)[0]);
@@ -1031,12 +960,12 @@ public class AutoCallService extends Service {
             Log.d("canCallStatus",
                     String.format(Locale.ENGLISH, "Call is before fajr at %d %d - fajr %d sunrise %d",
                             cityId, currentTime, fajr, sun));
-            return AutoCallLog.AutoCallIgnored.RESULT_IGNORED_BEFORE_FAJR;
+            return CallSessionItem.RESULT_IGNORED_BEFORE_FAJR;
         }
         Log.d("canCallStatus",
                 String.format(Locale.ENGLISH, "Call is after sunrise at %d %d - fajr %d sunrise %d",
                         cityId, currentTime, fajr, sun));
-        return AutoCallLog.AutoCallIgnored.RESULT_IGNORED_AFTER_SUNRISE;
+        return CallSessionItem.RESULT_IGNORED_AFTER_SUNRISE;
     }
 
     private String getFajrTime(int cityId) {
@@ -1056,23 +985,22 @@ public class AutoCallService extends Service {
         public void handleMessage(Message msg) {
             aquireWakeLock();
             callSession.setStarted(true);
-            ContactsListGroupList groups = list.getGroups();
 
-            while (callSession.getListCurrentCallItemIdx() < list.size()) {
-                ContactsListItem item = list.get(callSession.getListCurrentCallItemIdx());
+            while (callSession.getListCurrentCallItemIdx() < mItems.length) {
+                ContactListItem2 item = mItems[callSession.getListCurrentCallItemIdx()];
                 if (!callSession.containsNumberInRejectersList(item.number)
-                                && !numberInRejectedNumbers(groups, item.number)) {
+                        && !numberInRejectedNumbers(item.id)) {
                     byte canCall = AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED;
                     if (item.cityId != null)
                         canCall = getCanCallStatus(item.cityId);
                     if (canCall == AutoCallLog.AutoCallIgnored.RESULT_NOT_IGNORED)
                         break;
                     else
-                        addSessionIgnoredCall(new Date(), item.name, item.number, canCall);
+                        addSessionIgnoredCall(new Date(), item.id, canCall);
                 }
                 callSession.incrementListCurrentCallItemIdx();
             }
-            if (callSession.getListCurrentCallItemIdx() >= list.size()) {
+            if (callSession.getListCurrentCallItemIdx() >= mItems.length) {
                 // All replied, sunrised, or before fajr
                 lastServiceStartId = msg.arg1;
                 android.app.AlertDialog dlg = new AlertDialog.Builder(getApplicationContext())
@@ -1080,12 +1008,7 @@ public class AutoCallService extends Service {
                         .setCancelable(false)
                         .setMessage(R.string.dlg_failedToStart_msg)
                         .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                myStopSelf();
-                            }
-                        })
+                        .setPositiveButton(android.R.string.ok, (dialog, which) -> myStopSelf())
                         .create();
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
@@ -1096,11 +1019,11 @@ public class AutoCallService extends Service {
                 AnalyticsTrackers.getInstance(AutoCallService.this).logRingCancelBeforeAfterTime();
             } else {
                 AnalyticsTrackers.getInstance(AutoCallService.this).logRingStarted();
-                ContactsListItem item = list.get(callSession.getListCurrentCallItemIdx());
+                ContactListItem2 item = mItems[callSession.getListCurrentCallItemIdx()];
                 Integer profile = item.callProfileId;
                 if (profile == null)
                     profile = AutoCallProfileList.DEFAULT_PROFILE_ID;
-                callNumber(item.number, item.name, 1, item.callCount, profile);
+                callNumber(item.id, item.number, item.name, 1, item.callCount, profile);
                 lastServiceStartId = msg.arg1;
             }
             // Stop the service using the startId, so that we don't stop
