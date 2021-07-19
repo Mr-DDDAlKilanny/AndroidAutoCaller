@@ -57,7 +57,7 @@ public class CallListsActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        //TODO: display a dialog if the list is empty to help user
+
         if (AutoCallSession.getLastSession(this) != null &&
                 !OsUtils.isServiceRunning(this, AutoCallService.class)) {
             new androidx.appcompat.app.AlertDialog.Builder(this)
@@ -70,6 +70,8 @@ public class CallListsActivity extends AppCompatActivity {
                     })
                     .setNegativeButton(android.R.string.no, (dialog, which) -> AutoCallSession.clear(CallListsActivity.this))
                     .show();
+        } else if (adapter.getCount() == 0) {
+            Toast.makeText(this, R.string.list_empty_add_plus, Toast.LENGTH_LONG).show();
         } else if (UpdateCheckUtil.isConnected(this) !=
                 UpdateCheckUtil.CONNECTION_STATUS_NOT_CONNECTED) {
             final String code = String.format(Locale.ENGLISH, "%d",
@@ -110,8 +112,8 @@ public class CallListsActivity extends AppCompatActivity {
     private void showNewUpdateDlg() {
         new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setIcon(android.R.drawable.ic_dialog_alert)
-                .setTitle("New Version")
-                .setMessage("There is a new version. Update now?\n" +
+                .setTitle("New Version إصدار جديد")
+                .setMessage("There is a new version. Update now?\nيتوفر إصدار جديد. تحميل الآن؟\n" +
                         UpdateCheckUtil.getLastCheckWhatsnew(getApplicationContext()))
                 .setCancelable(false)
                 .setPositiveButton(android.R.string.yes, (dialogInterface, i) -> {

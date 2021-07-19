@@ -158,4 +158,5 @@ You can view the log for calls from the above menu.</string>
     <string name="share_msg">Wakeup others for Fajr! Auto Caller App will never stop riging your friends phones unitl they reject your repeated calls. It is Free, no Ads!</string>
     <string name="upgrading_application_data">Upgrading Application data...</string>
     <string name="make_app_faster_msg">This is to make the app faster. It can take several minutes, please wait...</string>
+    <string name="list_empty_add_plus">List is empty. Add an itme with the plus-button below.</string>
 </resources>

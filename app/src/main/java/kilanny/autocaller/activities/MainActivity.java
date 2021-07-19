@@ -97,7 +97,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private static boolean shareAd(Context context) {
         final SerializableInFile<Integer> response = new SerializableInFile<>(
                 context, "share__st", 0);
-        if (response.getData() == 0) {
+        if (response.getData() == 0 &&
+                AppDb.getInstance(context).callSessionItemDao().getLast() != null) {
             dispalyShareAd(context, response);
             return true;
         } else if (response.getData() == -1) {
@@ -481,7 +482,11 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     protected void onStart() {
         super.onStart();
         if (checkPermissions()) {
-            shareAd(this);
+            if (adapter.getCount() == 0) {
+                Toast.makeText(this, R.string.list_empty_add_plus, Toast.LENGTH_LONG).show();
+            } else {
+                shareAd(this);
+            }
         }
         if (OsUtils.isServiceRunning(this, AutoCallService.class)) {
             if (lastServiceIntent != null)
