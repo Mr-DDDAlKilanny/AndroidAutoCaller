@@ -151,7 +151,8 @@
     <string name="not_now">ليس الآن</string>
     <string name="share">مشاركة</string>
     <string name="share_msg">أوقظ معارفك لصلاة الفجر بواسطة الرن على رقم هاتفهم بشكل متكرر حتى يقوموا برفض المكالمة! حمل التطبيق الآن فهو مجاني وبدون أي إعلانات</string>
-    <string name="upgrading_application_data">يتم تحديث بيانات التطبيق...</string>
+    <string name="upgrading_application_data">يتم تحديث بيانات التطبيق…</string>
     <string name="make_app_faster_msg">هذا لجعل التطبيق أسرع. يمكن أن يستغرق هذا الإجراء عدة دقائق، برجاء الانتظار....</string>
     <string name="list_empty_add_plus">القائمة فارغة. أضف عنصرا بالضغط على زر الإضافة أدناه</string>
+    <string name="delete_list_contents_first">الرجاء حذف محتويات القائمة أولا</string>
 </resources>

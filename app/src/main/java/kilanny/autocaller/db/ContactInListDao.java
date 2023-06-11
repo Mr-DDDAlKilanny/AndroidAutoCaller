@@ -24,8 +24,8 @@ public interface ContactInListDao {
     @Query("UPDATE contact_in_list SET call_count = :callCount WHERE list_id = :listId AND contact_id = :contactId")
     void updateCallCount(long listId, long contactId, int callCount);
 
-    @Query("UPDATE contact_in_list SET `index` = :index WHERE list_id = :listId AND contact_id = :contactId")
-    void updateIndex(long listId, long contactId, int index);
+    @Query("UPDATE contact_in_list SET `index` = :newIndex WHERE list_id = :listId AND contact_id = :contactId AND `index` = :oldIndex")
+    void updateIndex(long listId, long contactId, int oldIndex, int newIndex);
 
     @Query("UPDATE contact_in_list " +
             "SET `index` = `index` - 1 " +

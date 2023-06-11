@@ -333,9 +333,11 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         adapter.remove(listItem);
                         adapter.insert(listItem, position - 1);
                         AppDb.getInstance(MainActivity.this).contactInListDao()
-                                .updateIndex(callListId, listItem.contactId, --listItem.index);
+                                .updateIndex(callListId, listItem.contactId, listItem.index, -12345);
                         AppDb.getInstance(MainActivity.this).contactInListDao()
-                                .updateIndex(callListId, listItem2.contactId, ++listItem2.index);
+                                .updateIndex(callListId, listItem2.contactId, listItem2.index, listItem.index);
+                        AppDb.getInstance(MainActivity.this).contactInListDao()
+                                .updateIndex(callListId, listItem.contactId, -12345, listItem2.index);
                         adapter.notifyDataSetChanged();
                         AnalyticsTrackers.getInstance(MainActivity.this).logEditContactOrder();
                     }
@@ -346,9 +348,11 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                         adapter.remove(listItem);
                         adapter.insert(listItem, position + 1);
                         AppDb.getInstance(MainActivity.this).contactInListDao()
-                                .updateIndex(callListId, listItem.contactId, ++listItem.index);
+                                .updateIndex(callListId, listItem.contactId, listItem.index, -12345);
                         AppDb.getInstance(MainActivity.this).contactInListDao()
-                                .updateIndex(callListId, listItem2.contactId, --listItem2.index);
+                                .updateIndex(callListId, listItem2.contactId, listItem2.index, listItem.index);
+                        AppDb.getInstance(MainActivity.this).contactInListDao()
+                                .updateIndex(callListId, listItem.contactId, -12345, listItem2.index);
                         adapter.notifyDataSetChanged();
                         AnalyticsTrackers.getInstance(MainActivity.this).logEditContactOrder();
                     }

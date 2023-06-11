@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="kilanny.autocaller">
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-sdk tools:overrideLibrary="com.google.firebase.iid,com.google.firebase.crashlytics" />
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="true" />
 
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -22,6 +23,7 @@
          Google Maps Android API v2, but you must specify either coarse or fine
          location permissions for the 'MyLocation' functionality. 
     -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <application
@@ -49,7 +51,7 @@
             android:label="@string/settings"
             android:parentActivityName=".activities.CallListsActivity" />
 
-        <receiver android:name=".intents.OutgoingCallReciever">
+        <receiver android:name=".intents.OutgoingCallReciever" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
             </intent-filter>
@@ -83,7 +85,7 @@
         <receiver
             android:name=".services.AutoCallService$PauseButtonListener"
             android:exported="false" />
-        <receiver android:name=".intents.AutoCallPhoneStateListener">
+        <receiver android:name=".intents.AutoCallPhoneStateListener" android:exported="false">
             <intent-filter android:priority="99999">
                 <action android:name="android.intent.action.PHONE_STATE" />
             </intent-filter>
@@ -92,7 +94,8 @@
         <activity
             android:name=".activities.CallListsActivity"
             android:label="@string/app_name"
-            android:theme="@style/AppTheme.NoActionBar">
+            android:theme="@style/AppTheme.NoActionBar"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

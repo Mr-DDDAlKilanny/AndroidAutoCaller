@@ -270,8 +270,11 @@ public class ShowLogActivity extends AppCompatActivity {
         recyclerView.setIndexBarTextColor("#33334c");
         recyclerView.setIndexBarColor("#FF334c");
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(mAdapter =
-                new ParentRecyclerViewAdapter(this, listId));
+        refreshAdapter(recyclerView);
+    }
+
+    private void refreshAdapter(IndexFastScrollRecyclerView recyclerView) {
+        recyclerView.setAdapter(mAdapter = new ParentRecyclerViewAdapter(this, listId));
     }
 
     @Override
@@ -297,7 +300,8 @@ public class ShowLogActivity extends AppCompatActivity {
                     .setPositiveButton(android.R.string.yes, (dialog, whichButton) -> {
                         AppDb.getInstance(this).callSessionItemDao().deleteByContactListId(listId);
                         AppDb.getInstance(this).callSessionDao().deleteByContactListId(listId);
-                        mAdapter.notifyDataSetChanged();
+                        IndexFastScrollRecyclerView recyclerView = findViewById(R.id.recycler_view);
+                        refreshAdapter(recyclerView);
                         AnalyticsTrackers.getInstance(ShowLogActivity.this).logClearLog();
                     })
                     .setNegativeButton(android.R.string.no, null).show();

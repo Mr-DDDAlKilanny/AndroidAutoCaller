@@ -247,11 +247,17 @@ public class CallListsActivity extends AppCompatActivity {
                         break;
                     case 2: {
                         AlertDialog.Builder b1 = new AlertDialog.Builder(b.getContext());
-                        b1.setTitle(options[2]);
+                        b1.setTitle(options[1]);
                         b1.setMessage(getString(R.string.delete_list_confirm_body));
                         b1.setCancelable(true);
                         b1.setPositiveButton(getString(android.R.string.yes), (dialog1, which1) -> {
-                            AppDb.getInstance(this).contactListDao().delete(item);
+                            try {
+                                AppDb.getInstance(this).contactListDao().delete(item);
+                            } catch (Exception ex) {
+                                Toast.makeText(b.getContext(),
+                                        R.string.delete_list_contents_first, Toast.LENGTH_LONG).show();
+                                return;
+                            }
                             adapter.remove(item);
                             adapter.notifyDataSetChanged();
                             AnalyticsTrackers.getInstance(CallListsActivity.this)

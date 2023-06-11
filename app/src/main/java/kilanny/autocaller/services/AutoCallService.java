@@ -223,17 +223,17 @@ public class AutoCallService extends Service {
         mNM = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
         Intent notificationIntent = new Intent(this, MainActivity.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
-                notificationIntent, 0);
+                notificationIntent, PendingIntent.FLAG_IMMUTABLE);
         notificationRemoteViews = new RemoteViews(getPackageName(), R.layout.notification_statusbar);
 
         //this is the intent that is supposed to be called when the button is clicked
         Intent stopIntent = new Intent(this, StopButtonListener.class);
         PendingIntent pendingStopIntent = PendingIntent.getBroadcast(this,
-                0, stopIntent, 0);
+                0, stopIntent, PendingIntent.FLAG_IMMUTABLE);
         notificationRemoteViews.setOnClickPendingIntent(R.id.btnStopCalls, pendingStopIntent);
         Intent pauseIntent = new Intent(this, PauseButtonListener.class);
         PendingIntent pendingPauseIntent = PendingIntent.getBroadcast(this,
-                0, pauseIntent, 0);
+                0, pauseIntent, PendingIntent.FLAG_IMMUTABLE);
         notificationRemoteViews.setOnClickPendingIntent(R.id.btnPauseCalls, pendingPauseIntent);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             String channelId = createNotificationChannel();
@@ -440,7 +440,7 @@ public class AutoCallService extends Service {
     }
 
     /**
-     * http://stackoverflow.com/a/8380418/3441905
+     * <a href="http://stackoverflow.com/a/8380418/3441905">Reference code</a>
      */
     private boolean terminateActiveCall() {
         try {
@@ -598,7 +598,7 @@ public class AutoCallService extends Service {
                     }
                 }
             }
-        }, afterSeconds * 1000);
+        }, afterSeconds * 1000L);
     }
 
     private void updateLastCallResult(boolean ans) {
