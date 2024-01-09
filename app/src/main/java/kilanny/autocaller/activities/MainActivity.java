@@ -457,6 +457,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 neededPermissions.add(Manifest.permission.ANSWER_PHONE_CALLS);
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                neededPermissions.add(Manifest.permission.POST_NOTIFICATIONS);
+            }
             for (int i = neededPermissions.size() - 1; i >= 0; --i) {
                 if (ActivityCompat.checkSelfPermission(this, neededPermissions.get(i))
                         == PackageManager.PERMISSION_GRANTED) {

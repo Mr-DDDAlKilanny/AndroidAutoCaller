@@ -91,7 +91,7 @@ public class UpgradeDataService extends Service {
         PendingIntent pendingIntent = PendingIntent.getActivity(this,
                 1,
                 getStartActivityIntent(),
-                PendingIntent.FLAG_UPDATE_CURRENT);
+                PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder notificationBuilder;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -116,7 +116,7 @@ public class UpgradeDataService extends Service {
                 //Hawawii devices can still cancel ongoing notification!!? so listen for that
                 .setDeleteIntent(PendingIntent.getBroadcast(this, 3,
                         new Intent(CHANNEL_ID),
-                        PendingIntent.FLAG_UPDATE_CURRENT))
+                        PendingIntent.FLAG_IMMUTABLE))
                 .build();
     }
 
